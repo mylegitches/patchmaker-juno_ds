@@ -5,6 +5,7 @@ import urllib.error
 import urllib.request
 from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
+from importlib.resources import files
 
 from patchmaker_juno_ds.designer import PatchChangePlan
 from patchmaker_juno_ds.gui import GuiService, demo_patch, make_handler
@@ -65,6 +66,10 @@ class GuiServiceTests(unittest.TestCase):
             self.service.dispatch("/api/ports"),
             {"inputs": ["JUNO IN"], "outputs": ["JUNO OUT"]},
         )
+
+    def test_interface_loads_default_patch_on_startup(self) -> None:
+        script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
+        self.assertIn("loadDemo().catch", script)
 
 
 class GuiHttpTests(unittest.TestCase):

@@ -169,3 +169,7 @@ $("#read-button").addEventListener("click", () => readHardware().catch(error => 
 $("#send-button").addEventListener("click", () => sendHardware().catch(error => toast(error.message, true)));
 $("#download-button").addEventListener("click", downloadPatch);
 document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => fields.request.value = button.dataset.prompt));
+
+// The GUI is immediately usable: a neutral, validated patch is always the
+// starting point until the user imports one or reads one from the JUNO-DS.
+loadDemo().catch(() => {});

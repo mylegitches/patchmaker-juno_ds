@@ -95,7 +95,7 @@ patchmaker-juno gui
 
 Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local machine except the configured LLM request. From the interface you can:
 
-- Load and validate a patch JSON file, or start with the built-in demo patch
+- Start immediately with an automatically loaded neutral patch, then optionally load and validate another patch JSON file
 - Configure any OpenAI-compatible endpoint and model
 - Describe and generate a patch variation
 - Inspect common parameters and all four tones
