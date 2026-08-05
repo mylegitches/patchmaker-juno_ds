@@ -18,6 +18,7 @@ from .errors import PatchmakerError, PatchValidationError, PlannerError
 from .mido_transport import MidoTransport, port_names
 from .model import JunoPatch
 from .openai_compatible import OpenAICompatiblePlanner
+from .prompt_randomizer import SYNTH_SOUND_ATTRIBUTES, randomize_prompt, resolve_sound_language
 from .spec import BLOCK_SPECS
 
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
@@ -82,6 +83,15 @@ class GuiService:
         data = payload if isinstance(payload, Mapping) else {}
         if path == "/api/demo":
             return {"patch": demo_patch().to_dict()}
+        if path == "/api/random-prompt":
+            result = randomize_prompt()
+            return {
+                "prompt": result.prompt,
+                "attributes": dict(result.attributes),
+                "parameter_mapping": resolve_sound_language(result.prompt),
+            }
+        if path == "/api/prompt-attributes":
+            return {"attributes": {key: list(values) for key, values in SYNTH_SOUND_ATTRIBUTES.items()}}
         if path == "/api/ports":
             inputs, outputs = self.ports_provider()
             return {"inputs": inputs, "outputs": outputs}

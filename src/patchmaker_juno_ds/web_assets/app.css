@@ -75,6 +75,7 @@ textarea { min-height: 106px; border: 0; resize: vertical; padding: 15px; font-s
 .suggestions { display: flex; gap: 6px; flex-wrap: wrap; }
 .suggestions button { border: 1px solid var(--line); border-radius: 999px; background: transparent; color: var(--muted); padding: 6px 9px; font-size: 9px; cursor: pointer; }
 .suggestions button:hover { color: var(--acid); border-color: rgba(201, 244, 90, .35); }
+.suggestions button.randomize { color: var(--acid); border-color: rgba(201, 244, 90, .3); background: rgba(201, 244, 90, .05); }
 
 .result-card { margin-top: 20px; padding: 27px; }
 .result-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; }

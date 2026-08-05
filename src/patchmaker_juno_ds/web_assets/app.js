@@ -97,6 +97,12 @@ async function loadDemo() {
   const data = await api("/api/demo", {}); renderPatch(data.patch, "Neutral demo patch loaded. Try describing a variation."); toast("Demo patch loaded");
 }
 
+async function randomizePrompt(showToast = true) {
+  const data = await api("/api/random-prompt", {});
+  fields.request.value = data.prompt;
+  if (showToast) toast("New sound idea generated");
+}
+
 async function loadFile(file) {
   try {
     const patch = JSON.parse(await file.text());
@@ -163,6 +169,7 @@ $("#patch-file").addEventListener("change", event => event.target.files[0] && lo
 dropzone.addEventListener("drop", event => event.dataTransfer.files[0] && loadFile(event.dataTransfer.files[0]));
 
 $("#demo-button").addEventListener("click", () => loadDemo().catch(() => {}));
+$("#randomize-prompt").addEventListener("click", () => randomizePrompt().catch(() => {}));
 $("#refine-button").addEventListener("click", () => refine().catch(() => {}));
 $("#refresh-ports").addEventListener("click", () => refreshPorts().catch(() => {}));
 $("#read-button").addEventListener("click", () => readHardware().catch(error => toast(error.message, true)));
@@ -170,6 +177,6 @@ $("#send-button").addEventListener("click", () => sendHardware().catch(error => 
 $("#download-button").addEventListener("click", downloadPatch);
 document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => fields.request.value = button.dataset.prompt));
 
-// The GUI is immediately usable: a neutral, validated patch is always the
-// starting point until the user imports one or reads one from the JUNO-DS.
-loadDemo().catch(() => {});
+// The GUI is immediately usable: it always starts with both a neutral,
+// validated patch and a fully formed sound description. Both remain editable.
+Promise.all([loadDemo(), randomizePrompt(false)]).catch(() => {});

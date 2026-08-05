@@ -12,6 +12,7 @@ from .designer import PatchChangePlan
 from .errors import PatchValidationError, PlannerError
 from .model import JunoPatch
 from .parameters import FILTER_TYPES, LFO_WAVEFORMS
+from .prompt_randomizer import resolve_sound_language
 
 SYSTEM_PROMPT = """You are a Roland JUNO-DS sound designer.
 Translate the user's requested sound change into a minimal semantic patch-change plan.
@@ -24,6 +25,7 @@ Safety and output rules:
 - A tone_number is 1 through 4. Do not include the same tone twice.
 - Explain the synthesis reasoning briefly in the explanation field.
 - If the request cannot be represented by the contract, make the closest conservative changes and explain the limitation.
+- Use recognized_sound_language as concrete synthesis guidance. It maps non-technical words to supported JUNO parameter dimensions; follow it unless the user's wording clearly requires otherwise.
 """
 
 
@@ -165,6 +167,7 @@ class OpenAICompatiblePlanner:
         user_payload = {
             "request": request,
             "current_patch": patch_context,
+            "recognized_sound_language": resolve_sound_language(request),
             "output_contract": _contract(),
         }
         body: dict[str, object] = {

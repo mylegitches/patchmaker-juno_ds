@@ -48,6 +48,9 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         self.assertEqual(timeout, 12.5)
         user_payload = json.loads(body["messages"][1]["content"])
         self.assertEqual(user_payload["request"], "make it darker")
+        recognized = user_payload["recognized_sound_language"]
+        self.assertTrue(any(item["phrase"] == "dark" for item in recognized))
+        self.assertTrue(any("cutoff" in " ".join(item["guidance"]) for item in recognized))
         self.assertNotIn("blocks", user_payload["current_patch"])
         self.assertIn("tone_fields", user_payload["output_contract"])
 

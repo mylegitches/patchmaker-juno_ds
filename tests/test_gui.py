@@ -67,9 +67,15 @@ class GuiServiceTests(unittest.TestCase):
             {"inputs": ["JUNO IN"], "outputs": ["JUNO OUT"]},
         )
 
+    def test_random_prompt_includes_parameter_mapping(self) -> None:
+        result = self.service.dispatch("/api/random-prompt")
+        self.assertTrue(result["prompt"])
+        self.assertGreaterEqual(len(result["attributes"]), 15)
+        self.assertGreater(len(result["parameter_mapping"]), 10)
+
     def test_interface_loads_default_patch_on_startup(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
-        self.assertIn("loadDemo().catch", script)
+        self.assertIn("Promise.all([loadDemo(), randomizePrompt(false)])", script)
 
     def test_interface_defaults_to_openrouter_free(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
