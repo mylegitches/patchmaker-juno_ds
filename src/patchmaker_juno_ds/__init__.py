@@ -10,14 +10,17 @@ from .codec import (
 )
 from .errors import PatchValidationError, ProtocolError, TransportError
 from .model import JunoPatch
+from .parameters import CommonParameters, ToneParameters
 
 __all__ = [
     "JunoClient",
     "JunoPatch",
+    "CommonParameters",
     "MidiTransport",
     "PatchValidationError",
     "ProtocolError",
     "TransportError",
+    "ToneParameters",
     "build_edit_buffer_requests",
     "decode_edit_buffer",
     "encode_edit_buffer",

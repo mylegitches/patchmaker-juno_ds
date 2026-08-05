@@ -9,6 +9,7 @@ The repository now includes a hardware-safe Python prototype of the JUNO patch A
 - Strict, versioned JSON validation for a complete JUNO-DS patch
 - Lossless preservation of all nine temporary-patch data blocks
 - Human-editable patch name and category
+- Verified semantic editing for core patch, tone, filter, envelope, and LFO parameters
 - Deterministic Roland RQ1/DT1 framing and checksum validation
 - `.syx` to JSON and JSON to `.syx` conversion
 - Transport-neutral read/write API with an optional Mido hardware adapter
@@ -16,6 +17,8 @@ The repository now includes a hardware-safe Python prototype of the JUNO patch A
 - Standard-library unit and mock-transport tests
 
 The unnamed device parameters remain as validated 7-bit block arrays. This is deliberate: the prototype preserves every byte without claiming semantic parameter offsets that have not yet been verified.
+
+Semantic JSON fields are derived from—and written back into—the lossless blocks. Current coverage includes patch level/tuning/portamento and sound-shaping offsets; tone enable/level/tuning/pan; waveform number; TVF filter type, cutoff, resonance, and envelope; TVA envelope; and LFO1 waveform/depth. Unmapped bytes remain untouched.
 
 ### Run the tests
 

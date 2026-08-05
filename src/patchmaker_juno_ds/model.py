@@ -16,6 +16,16 @@ from .spec import (
     PATCH_NAME_LENGTH,
     SCHEMA_VERSION,
 )
+from .parameters import (
+    CommonParameters,
+    ToneParameters,
+    decode_common,
+    decode_tone,
+    encode_common,
+    encode_tone,
+    parameters_from_dict,
+    parameters_to_dict,
+)
 
 
 def _validate_name(name: object) -> str:
@@ -119,7 +129,15 @@ class JunoPatch:
     def from_dict(cls, value: object) -> "JunoPatch":
         if not isinstance(value, Mapping):
             raise PatchValidationError("patch document must be a JSON object")
-        allowed = {"schema_version", "device", "name", "category", "category_name", "blocks"}
+        allowed = {
+            "schema_version",
+            "device",
+            "name",
+            "category",
+            "category_name",
+            "parameters",
+            "blocks",
+        }
         unknown = sorted(set(value) - allowed)
         if unknown:
             raise PatchValidationError(f"unknown top-level field(s): {', '.join(unknown)}")
@@ -131,12 +149,16 @@ class JunoPatch:
             raise PatchValidationError(
                 f"category_name must be {CATEGORIES[category]!r} for category {category}"
             )
-        return cls(
+        patch = cls(
             name=value.get("name"),  # type: ignore[arg-type]
             category=category,
             blocks=value.get("blocks"),  # type: ignore[arg-type]
             schema_version=value.get("schema_version", SCHEMA_VERSION),  # type: ignore[arg-type]
         )
+        if "parameters" in value:
+            common, tones = parameters_from_dict(value["parameters"])
+            patch = patch.with_parameters(common, tones)
+        return patch
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -145,8 +167,42 @@ class JunoPatch:
             "name": self.name,
             "category": self.category,
             "category_name": CATEGORIES[self.category],
+            "parameters": parameters_to_dict(self.common_parameters, self.tone_parameters),
             "blocks": {spec.key: list(self.blocks[spec.key]) for spec in BLOCK_SPECS},
         }
+
+    @property
+    def common_parameters(self) -> CommonParameters:
+        return decode_common(self.blocks["patch_common"])
+
+    @property
+    def tone_parameters(self) -> tuple[ToneParameters, ...]:
+        mix = self.blocks["tone_mix"]
+        return tuple(decode_tone(self.blocks[f"tone_{index + 1}"], mix, index) for index in range(4))
+
+    def with_parameters(
+        self, common: CommonParameters, tones: tuple[ToneParameters, ...] | list[ToneParameters]
+    ) -> "JunoPatch":
+        if len(tones) != 4:
+            raise PatchValidationError("exactly four tone parameter sets are required")
+        blocks = dict(self.blocks)
+        blocks["patch_common"] = encode_common(blocks["patch_common"], common)
+        mix = blocks["tone_mix"]
+        for index, tone in enumerate(tones):
+            block_key = f"tone_{index + 1}"
+            blocks[block_key], mix = encode_tone(blocks[block_key], mix, index, tone)
+        blocks["tone_mix"] = mix
+        return JunoPatch(self.name, self.category, blocks, self.schema_version)
+
+    def with_common_parameters(self, **changes: object) -> "JunoPatch":
+        return self.with_parameters(self.common_parameters.updated(**changes), self.tone_parameters)
+
+    def with_tone_parameters(self, tone_number: int, **changes: object) -> "JunoPatch":
+        if not 1 <= tone_number <= 4:
+            raise PatchValidationError("tone_number must be between 1 and 4")
+        tones = list(self.tone_parameters)
+        tones[tone_number - 1] = tones[tone_number - 1].updated(**changes)
+        return self.with_parameters(self.common_parameters, tones)
 
     @classmethod
     def load(cls, path: str | Path) -> "JunoPatch":
