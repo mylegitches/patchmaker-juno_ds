@@ -12,6 +12,14 @@ fields.model.value = localStorage.getItem("patchmaker.model") || "openrouter/fre
 fields.baseUrl.addEventListener("change", () => localStorage.setItem("patchmaker.baseUrl", fields.baseUrl.value));
 fields.model.addEventListener("change", () => localStorage.setItem("patchmaker.model", fields.model.value));
 
+function resetConnectionStatus() {
+  const node = $("#connection-result");
+  node.className = "connection-result";
+  node.querySelector("span").textContent = "Connection not tested";
+}
+
+[fields.baseUrl, fields.model, fields.apiKey].forEach(field => field.addEventListener("input", resetConnectionStatus));
+
 function status(message, type = "ready") {
   const node = $("#app-status");
   node.className = `status ${type === "ready" ? "" : type}`;
@@ -103,6 +111,23 @@ async function randomizePrompt(showToast = true) {
   if (showToast) toast("New sound idea generated");
 }
 
+async function testConnection() {
+  const node = $("#connection-result");
+  node.className = "connection-result";
+  node.querySelector("span").textContent = "Testing endpoint, model, and key…";
+  try {
+    const data = await api("/api/test-connection", {
+      base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
+    });
+    node.className = "connection-result success";
+    node.querySelector("span").textContent = `${data.message} · ${data.model}`;
+    toast("Model connection verified");
+  } catch (error) {
+    node.className = "connection-result failure";
+    node.querySelector("span").textContent = error.message;
+  }
+}
+
 async function loadFile(file) {
   try {
     const patch = JSON.parse(await file.text());
@@ -170,6 +195,7 @@ dropzone.addEventListener("drop", event => event.dataTransfer.files[0] && loadFi
 
 $("#demo-button").addEventListener("click", () => loadDemo().catch(() => {}));
 $("#randomize-prompt").addEventListener("click", () => randomizePrompt().catch(() => {}));
+$("#test-connection").addEventListener("click", testConnection);
 $("#refine-button").addEventListener("click", () => refine().catch(() => {}));
 $("#refresh-ports").addEventListener("click", () => refreshPorts().catch(() => {}));
 $("#read-button").addEventListener("click", () => readHardware().catch(error => toast(error.message, true)));

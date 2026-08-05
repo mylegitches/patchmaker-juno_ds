@@ -22,6 +22,24 @@ def completion(content: str):
 
 
 class OpenAICompatiblePlannerTests(unittest.TestCase):
+    def test_connection_checks_auth_model_and_structured_output(self) -> None:
+        transport = RecordingTransport(
+            {"model": "provider/resolved-model", "choices": [{"message": {"content": '{"ok":true}'}}]}
+        )
+        planner = OpenAICompatiblePlanner(
+            base_url="https://router.test/v1",
+            model="requested-model",
+            api_key="test-secret",
+            transport=transport,
+        )
+        self.assertEqual(planner.test_connection(), "provider/resolved-model")
+        url, body, headers, timeout = transport.calls[0]
+        self.assertEqual(url, "https://router.test/v1/chat/completions")
+        self.assertEqual(body["model"], "requested-model")
+        self.assertEqual(body["response_format"], {"type": "json_object"})
+        self.assertEqual(headers["Authorization"], "Bearer test-secret")
+        self.assertEqual(timeout, 60.0)
+
     def test_standard_chat_completions_request_and_plan_response(self) -> None:
         response_plan = {
             "explanation": "Darken all enabled tones.",

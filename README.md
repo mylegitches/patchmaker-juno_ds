@@ -97,6 +97,7 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 
 - Start immediately with an automatically loaded neutral patch, then optionally load and validate another patch JSON file
 - Configure any OpenAI-compatible endpoint and model
+- Paste an API key directly into the session-only web field and test the endpoint, model, and authentication before generating
 - Describe and generate a patch variation
 - Start with an automatically randomized, editable sound description and generate another with **Randomize prompt**
 - Inspect common parameters and all four tones

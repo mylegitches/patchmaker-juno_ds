@@ -157,6 +157,34 @@ class OpenAICompatiblePlanner:
         self.timeout = timeout
         self.transport = transport or UrllibJsonTransport()
 
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    def test_connection(self) -> str:
+        """Make a minimal structured-output request and return the resolved model name."""
+        body: dict[str, object] = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Return one JSON object with exactly one field: ok, set to true.",
+                },
+                {"role": "user", "content": "Test this model connection."},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        response = self.transport.post(self.endpoint, body, self._headers(), self.timeout)
+        if not isinstance(response, Mapping):
+            raise PlannerError("LLM endpoint response must be a JSON object")
+        choices = response.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise PlannerError("LLM endpoint connection test returned no choices")
+        model = response.get("model")
+        return model if isinstance(model, str) and model else self.model
+
     def create_plan(self, request: str, patch: JunoPatch) -> PatchChangePlan:
         patch_context = {
             "name": patch.name,
@@ -178,10 +206,7 @@ class OpenAICompatiblePlanner:
             ],
             "response_format": {"type": "json_object"},
         }
-        headers = {"Content-Type": "application/json", "Accept": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        response = self.transport.post(self.endpoint, body, headers, self.timeout)
+        response = self.transport.post(self.endpoint, body, self._headers(), self.timeout)
         if not isinstance(response, Mapping):
             raise PlannerError("LLM endpoint response must be a JSON object")
         try:

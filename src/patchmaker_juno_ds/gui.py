@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import threading
 import webbrowser
 from dataclasses import asdict
@@ -65,6 +66,23 @@ def _device_id(value: object) -> int:
     return value
 
 
+def _configuration_value(name: str) -> str | None:
+    """Read process configuration, then the persistent Windows user environment."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    if sys.platform != "win32":
+        return None
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            stored, _ = winreg.QueryValueEx(key, name)
+        return stored if isinstance(stored, str) and stored else None
+    except OSError:
+        return None
+
+
 class GuiService:
     """JSON-friendly operations used by the HTTP layer and unit tests."""
 
@@ -92,6 +110,28 @@ class GuiService:
             }
         if path == "/api/prompt-attributes":
             return {"attributes": {key: list(values) for key, values in SYNTH_SOUND_ATTRIBUTES.items()}}
+        if path == "/api/test-connection":
+            base_url = _required_string(
+                data.get("base_url") or _configuration_value("PATCHMAKER_LLM_BASE_URL"), "base_url"
+            )
+            model = _required_string(
+                data.get("model") or _configuration_value("PATCHMAKER_LLM_MODEL"), "model"
+            )
+            api_key = data.get("api_key") or _configuration_value("PATCHMAKER_LLM_API_KEY")
+            if api_key is not None and not isinstance(api_key, str):
+                raise PatchValidationError("api_key must be a string")
+            planner = self.planner_factory(
+                base_url=base_url,
+                model=model,
+                api_key=api_key,
+                timeout=30.0,
+            )
+            resolved_model = planner.test_connection()  # type: ignore[attr-defined]
+            return {
+                "message": "Connection successful",
+                "model": resolved_model,
+                "authenticated": bool(api_key),
+            }
         if path == "/api/ports":
             inputs, outputs = self.ports_provider()
             return {"inputs": inputs, "outputs": outputs}
@@ -102,12 +142,12 @@ class GuiService:
             patch = JunoPatch.from_dict(data.get("patch"))
             request = _required_string(data.get("request"), "request")
             base_url = _required_string(
-                data.get("base_url") or os.environ.get("PATCHMAKER_LLM_BASE_URL"), "base_url"
+                data.get("base_url") or _configuration_value("PATCHMAKER_LLM_BASE_URL"), "base_url"
             )
             model = _required_string(
-                data.get("model") or os.environ.get("PATCHMAKER_LLM_MODEL"), "model"
+                data.get("model") or _configuration_value("PATCHMAKER_LLM_MODEL"), "model"
             )
-            api_key = data.get("api_key") or os.environ.get("PATCHMAKER_LLM_API_KEY")
+            api_key = data.get("api_key") or _configuration_value("PATCHMAKER_LLM_API_KEY")
             if api_key is not None and not isinstance(api_key, str):
                 raise PatchValidationError("api_key must be a string")
             planner = self.planner_factory(

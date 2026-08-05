@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import unittest
 import urllib.error
@@ -6,9 +7,11 @@ import urllib.request
 from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
 from importlib.resources import files
+from unittest.mock import patch
 
 from patchmaker_juno_ds.designer import PatchChangePlan
 from patchmaker_juno_ds.gui import GuiService, demo_patch, make_handler
+from patchmaker_juno_ds.gui import _configuration_value
 from patchmaker_juno_ds.model import JunoPatch
 
 
@@ -25,6 +28,9 @@ class FakePlanner:
             common={"cutoff_offset": -18},
         )
 
+    def test_connection(self) -> str:
+        return "resolved-test-model"
+
 
 class GuiServiceTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -38,6 +44,10 @@ class GuiServiceTests(unittest.TestCase):
         patch = JunoPatch.from_dict(value["patch"])
         self.assertEqual(patch.name, "INIT PATCH")
         self.assertTrue(patch.tone_parameters[0].enabled)
+
+    def test_configuration_prefers_process_environment(self) -> None:
+        with patch.dict(os.environ, {"PATCHMAKER_TEST_VALUE": "process-value"}):
+            self.assertEqual(_configuration_value("PATCHMAKER_TEST_VALUE"), "process-value")
 
     def test_validate_normalizes_patch(self) -> None:
         result = self.service.dispatch("/api/validate", {"patch": demo_patch().to_dict()})
@@ -73,9 +83,25 @@ class GuiServiceTests(unittest.TestCase):
         self.assertGreaterEqual(len(result["attributes"]), 15)
         self.assertGreater(len(result["parameter_mapping"]), 10)
 
+    def test_connection_uses_key_without_returning_it(self) -> None:
+        result = self.service.dispatch(
+            "/api/test-connection",
+            {
+                "base_url": "https://router.test/v1",
+                "model": "requested-model",
+                "api_key": "session-secret",
+            },
+        )
+        self.assertEqual(result["message"], "Connection successful")
+        self.assertEqual(result["model"], "resolved-test-model")
+        self.assertTrue(result["authenticated"])
+        self.assertEqual(FakePlanner.init_args["api_key"], "session-secret")
+        self.assertNotIn("session-secret", json.dumps(result))
+
     def test_interface_loads_default_patch_on_startup(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
         self.assertIn("Promise.all([loadDemo(), randomizePrompt(false)])", script)
+        self.assertIn('$("#test-connection").addEventListener', script)
 
     def test_interface_defaults_to_openrouter_free(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
