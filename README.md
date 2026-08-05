@@ -104,6 +104,8 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 
 The API key remains in the browser session and is sent only to the local Patchmaker process for the model request. The endpoint URL and model ID are remembered by the browser; the key is not persisted. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
 
+New browser profiles default to OpenRouter at `https://openrouter.ai/api/v1` with the capability-aware `openrouter/free` model router. You can replace either field with another OpenAI-compatible endpoint or a specific model at any time.
+
 To run without automatically opening a browser, or to use another local port:
 
 ```powershell

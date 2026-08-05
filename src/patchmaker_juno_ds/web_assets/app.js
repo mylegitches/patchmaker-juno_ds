@@ -7,8 +7,8 @@ const fields = {
   inputPort: $("#input-port"), outputPort: $("#output-port"), request: $("#request")
 };
 
-fields.baseUrl.value = localStorage.getItem("patchmaker.baseUrl") || "";
-fields.model.value = localStorage.getItem("patchmaker.model") || "";
+fields.baseUrl.value = localStorage.getItem("patchmaker.baseUrl") || "https://openrouter.ai/api/v1";
+fields.model.value = localStorage.getItem("patchmaker.model") || "openrouter/free";
 fields.baseUrl.addEventListener("change", () => localStorage.setItem("patchmaker.baseUrl", fields.baseUrl.value));
 fields.model.addEventListener("change", () => localStorage.setItem("patchmaker.model", fields.model.value));
 

@@ -71,6 +71,11 @@ class GuiServiceTests(unittest.TestCase):
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
         self.assertIn("loadDemo().catch", script)
 
+    def test_interface_defaults_to_openrouter_free(self) -> None:
+        script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
+        self.assertIn('"https://openrouter.ai/api/v1"', script)
+        self.assertIn('"openrouter/free"', script)
+
 
 class GuiHttpTests(unittest.TestCase):
     @contextmanager
