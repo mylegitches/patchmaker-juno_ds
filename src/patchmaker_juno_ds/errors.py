@@ -15,3 +15,7 @@ class ProtocolError(PatchmakerError, ValueError):
 
 class TransportError(PatchmakerError, RuntimeError):
     """Raised when MIDI communication cannot complete safely."""
+
+
+class PlannerError(PatchmakerError, RuntimeError):
+    """Raised when a sound-design planner fails or returns invalid output."""

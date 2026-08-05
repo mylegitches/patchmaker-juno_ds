@@ -67,6 +67,24 @@ patchmaker-juno write current-patch.json `
 
 `write` targets the temporary edit buffer; it does not store or overwrite a user patch. Port names vary by operating system. The hardware workflow requires a connected JUNO-DS and has not been exercised by the repository's automated tests.
 
+### LLM refinement
+
+Patchmaker uses a provider-neutral planner interface. The included adapter calls an OpenAI-compatible Chat Completions endpoint and asks it for a semantic change plan; the deterministic patch API validates and applies that plan. Raw blocks, SysEx addresses, and device bytes are never sent to or accepted from the model.
+
+Configure the adapter with environment variables. The API key is optional for local endpoints and is intentionally not accepted as a command-line argument:
+
+```powershell
+$env:PATCHMAKER_LLM_BASE_URL = "http://localhost:8000/v1"
+$env:PATCHMAKER_LLM_MODEL = "your-model-id"
+$env:PATCHMAKER_LLM_API_KEY = "your-api-key" # omit when not required
+
+patchmaker-juno refine current-patch.json `
+  "Make it darker, soften the attack, and add subtle movement" `
+  refined-patch.json
+```
+
+Any service that implements the expected `/chat/completions` request and response shape can be substituted by changing the URL and model variables. Automated tests use a fake HTTP transport and never make a paid or external model call.
+
 ## Core workflows
 
 ### Text to patch

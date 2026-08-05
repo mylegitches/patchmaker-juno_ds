@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
 from .client import JunoClient
 from .codec import decode_edit_buffer, encode_edit_buffer
-from .errors import PatchmakerError
+from .designer import SoundDesigner
+from .errors import PatchmakerError, PlannerError
 from .mido_transport import MidoTransport, port_names
 from .model import JunoPatch
+from .openai_compatible import OpenAICompatiblePlanner
 
 
 def _device_id(value: str) -> int:
@@ -38,6 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
     to_syx.add_argument("input", type=Path)
     to_syx.add_argument("output", type=Path)
     to_syx.add_argument("--device-id", type=_device_id, default=0x10)
+
+    refine = commands.add_parser("refine", help="refine a patch through an OpenAI-compatible LLM")
+    refine.add_argument("input", type=Path)
+    refine.add_argument("request", help="natural-language sound-design request")
+    refine.add_argument("output", type=Path)
+    refine.add_argument("--base-url", default=os.environ.get("PATCHMAKER_LLM_BASE_URL"))
+    refine.add_argument("--model", default=os.environ.get("PATCHMAKER_LLM_MODEL"))
+    refine.add_argument("--timeout", type=float, default=60.0)
 
     commands.add_parser("list-ports", help="list MIDI ports (requires the midi extra)")
 
@@ -73,6 +84,21 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "json-to-syx":
             patch = JunoPatch.load(args.input)
             args.output.write_bytes(b"".join(encode_edit_buffer(patch, args.device_id)))
+            print(f"Wrote {args.output}")
+        elif args.command == "refine":
+            if not args.base_url:
+                raise PlannerError("set --base-url or PATCHMAKER_LLM_BASE_URL")
+            if not args.model:
+                raise PlannerError("set --model or PATCHMAKER_LLM_MODEL")
+            planner = OpenAICompatiblePlanner(
+                base_url=args.base_url,
+                model=args.model,
+                api_key=os.environ.get("PATCHMAKER_LLM_API_KEY"),
+                timeout=args.timeout,
+            )
+            result = SoundDesigner(planner).refine(JunoPatch.load(args.input), args.request)
+            result.patch.save(args.output)
+            print(result.plan.explanation)
             print(f"Wrote {args.output}")
         elif args.command == "list-ports":
             inputs, outputs = port_names()

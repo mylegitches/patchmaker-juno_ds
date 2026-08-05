@@ -8,8 +8,10 @@ from .codec import (
     parse_message,
     split_sysex,
 )
-from .errors import PatchValidationError, ProtocolError, TransportError
+from .designer import PatchChangePlan, RefinementResult, SoundDesigner, ToneChange
+from .errors import PatchValidationError, PlannerError, ProtocolError, TransportError
 from .model import JunoPatch
+from .openai_compatible import OpenAICompatiblePlanner
 from .parameters import CommonParameters, ToneParameters
 
 __all__ = [
@@ -17,8 +19,14 @@ __all__ = [
     "JunoPatch",
     "CommonParameters",
     "MidiTransport",
+    "OpenAICompatiblePlanner",
+    "PatchChangePlan",
     "PatchValidationError",
+    "PlannerError",
     "ProtocolError",
+    "RefinementResult",
+    "SoundDesigner",
+    "ToneChange",
     "TransportError",
     "ToneParameters",
     "build_edit_buffer_requests",
