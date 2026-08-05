@@ -55,6 +55,7 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
             transport=transport,
         )
         plan = planner.create_plan("make it darker", make_patch())
+        self.assertEqual(plan.name, "Darker")
         self.assertEqual(plan.common, {"cutoff_offset": -18})
         self.assertEqual(plan.tones[0].changes, {"cutoff": 52})
 
@@ -71,6 +72,17 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         self.assertTrue(any("cutoff" in " ".join(item["guidance"]) for item in recognized))
         self.assertNotIn("blocks", user_payload["current_patch"])
         self.assertIn("tone_fields", user_payload["output_contract"])
+        self.assertIn("required distinctive", user_payload["output_contract"]["top_level"]["name"])
+
+    def test_missing_or_repeated_name_gets_a_fresh_request_based_name(self) -> None:
+        transport = RecordingTransport(
+            completion('{"explanation":"reshape","name":"TEST PATCH","common":{"level":100}}')
+        )
+        planner = OpenAICompatiblePlanner(
+            base_url="http://example.test/v1", model="model", transport=transport
+        )
+        plan = planner.create_plan("hypnotic shimmering drone", make_patch())
+        self.assertEqual(plan.name, "HypnoticShim")
 
     def test_api_key_is_optional_for_local_endpoints(self) -> None:
         transport = RecordingTransport(

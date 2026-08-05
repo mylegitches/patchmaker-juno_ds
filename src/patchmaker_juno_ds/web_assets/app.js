@@ -164,19 +164,53 @@ async function refreshHistory() {
     list.append(empty);
     return;
   }
+  const duplicateCounts = data.patches.reduce((counts, record) => {
+    counts.set(record.name, (counts.get(record.name) || 0) + 1);
+    return counts;
+  }, new Map());
+  const remainingVersions = new Map(duplicateCounts);
   data.patches.forEach(record => {
-    const item = document.createElement("button");
+    const item = document.createElement("article");
     item.className = `history-item${record.id === currentHistoryId ? " current" : ""}`;
+    item.tabIndex = 0; item.setAttribute("role", "button");
     const header = document.createElement("header");
-    const name = document.createElement("strong"); name.textContent = record.name;
+    const version = remainingVersions.get(record.name);
+    remainingVersions.set(record.name, version - 1);
+    const displayName = duplicateCounts.get(record.name) > 1
+      ? `${record.name} · v${version}`
+      : record.name;
+    const name = document.createElement("strong"); name.textContent = displayName;
+    const controls = document.createElement("span"); controls.className = "history-controls";
     const time = document.createElement("time"); time.textContent = formatDate(record.created_at);
-    header.append(name, time);
+    const remove = document.createElement("button"); remove.className = "history-delete";
+    remove.type = "button"; remove.title = `Delete ${displayName}`; remove.setAttribute("aria-label", remove.title);
+    remove.textContent = "×";
+    remove.addEventListener("click", event => {
+      event.stopPropagation();
+      deleteHistoryPatch(record).catch(() => {});
+    });
+    remove.addEventListener("keydown", event => event.stopPropagation());
+    controls.append(time, remove); header.append(name, controls);
     const request = document.createElement("p"); request.textContent = record.request;
     const category = document.createElement("small"); category.textContent = record.category_name;
     item.append(header, request, category);
     item.addEventListener("click", () => loadHistoryPatch(record.id).catch(() => {}));
+    item.addEventListener("keydown", event => {
+      if (["Enter", " "].includes(event.key)) { event.preventDefault(); loadHistoryPatch(record.id).catch(() => {}); }
+    });
     list.append(item);
   });
+}
+
+async function deleteHistoryPatch(record) {
+  if (!confirm(`Remove ${record.name} from the local patch library? This cannot be undone.`)) return;
+  const data = await api("/api/history/delete", {id: record.id});
+  if (currentHistoryId === record.id) {
+    currentHistoryId = null;
+    $("#current-version").textContent = "Unsaved working patch";
+  }
+  await refreshHistory();
+  toast(data.message);
 }
 
 async function loadHistoryPatch(id) {

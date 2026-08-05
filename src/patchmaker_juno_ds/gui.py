@@ -127,6 +127,10 @@ class GuiService:
                 "patch": record.patch.to_dict(),
                 "message": record.explanation,
             }
+        if path == "/api/history/delete":
+            record_id = _required_string(data.get("id"), "id")
+            record = self.library.delete(record_id)
+            return {"id": record.id, "message": f"Deleted {record.patch.name} from the library"}
         if path == "/api/configuration":
             return {
                 "base_url": _configuration_value("PATCHMAKER_LLM_BASE_URL") or "https://openrouter.ai/api/v1",

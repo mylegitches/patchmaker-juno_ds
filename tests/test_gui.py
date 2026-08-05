@@ -125,6 +125,28 @@ class GuiServiceTests(unittest.TestCase):
         self.assertEqual(JunoPatch.from_dict(reopened["patch"]), JunoPatch.from_dict(first["patch"]))
         self.assertEqual(second["record"]["parent_id"], first["record"]["id"])
 
+    def test_frontend_versions_duplicate_history_names(self) -> None:
+        javascript = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
+        self.assertIn("duplicateCounts", javascript)
+        self.assertIn("`${record.name} · v${version}`", javascript)
+        self.assertIn("deleteHistoryPatch(record)", javascript)
+
+    def test_saved_patch_can_be_deleted_without_affecting_other_versions(self) -> None:
+        first = self.service.dispatch(
+            "/api/refine",
+            {"patch": demo_patch().to_dict(), "request": "first", "base_url": "x", "model": "x"},
+        )
+        second = self.service.dispatch(
+            "/api/refine",
+            {"patch": first["patch"], "request": "second", "base_url": "x", "model": "x"},
+        )
+        deleted = self.service.dispatch("/api/history/delete", {"id": first["record"]["id"]})
+        self.assertEqual(deleted["id"], first["record"]["id"])
+        self.assertEqual(
+            [item["id"] for item in self.service.dispatch("/api/history")["patches"]],
+            [second["record"]["id"]],
+        )
+
     def test_ports_are_json_friendly(self) -> None:
         self.assertEqual(
             self.service.dispatch("/api/ports"),

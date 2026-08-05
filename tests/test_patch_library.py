@@ -47,6 +47,16 @@ class PatchLibraryTests(unittest.TestCase):
                     make_patch(), request="request", explanation="explanation", parent_id="bad"
                 )
 
+    def test_delete_removes_only_the_selected_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            library = PatchLibrary(Path(directory))
+            first = library.save(make_patch("FIRST"), request="first", explanation="first")
+            second = library.save(make_patch("SECOND"), request="second", explanation="second")
+            self.assertEqual(library.delete(first.id), first)
+            self.assertEqual([item["id"] for item in library.list()], [second.id])
+            with self.assertRaisesRegex(PatchValidationError, "not found"):
+                library.load(first.id)
+
     def test_corrupt_records_do_not_hide_valid_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

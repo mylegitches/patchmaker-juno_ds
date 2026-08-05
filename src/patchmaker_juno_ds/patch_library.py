@@ -144,6 +144,16 @@ class PatchLibrary:
         except json.JSONDecodeError as error:
             raise PatchValidationError("saved patch record contains invalid JSON") from error
 
+    def delete(self, record_id: str) -> PatchRecord:
+        """Delete exactly one validated library record and return its former contents."""
+        record = self.load(record_id)
+        target = self.root.joinpath(f"{record.id}.json")
+        try:
+            target.unlink()
+        except OSError as error:
+            raise PatchValidationError("saved patch could not be deleted") from error
+        return record
+
     def list(self) -> list[dict[str, object]]:
         if not self.root.is_dir():
             return []

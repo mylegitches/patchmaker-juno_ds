@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Mapping, Protocol
 
 from .designer import PatchChangePlan
@@ -24,6 +25,7 @@ Safety and output rules:
 - Use only the fields and ranges listed in the supplied contract.
 - A tone_number is 1 through 4. Do not include the same tone twice.
 - Explain the synthesis reasoning briefly in the explanation field.
+- Always provide a short, distinctive patch name that describes this new sound. Do not reuse the current patch name.
 - If the request cannot be represented by the contract, make the closest conservative changes and explain the limitation.
 - Use recognized_sound_language as concrete synthesis guidance. It maps non-technical words to supported JUNO parameter dimensions; follow it unless the user's wording clearly requires otherwise.
 """
@@ -67,7 +69,7 @@ def _contract() -> dict[str, object]:
     return {
         "top_level": {
             "explanation": "required non-empty string",
-            "name": "optional string, 1..12 printable ASCII characters",
+            "name": "required distinctive string, 1..12 printable ASCII characters; must differ from current patch name",
             "category": "optional integer, 0..38",
             "common": "optional object containing only common fields below",
             "tones": "optional array of {tone_number, changes}",
@@ -128,6 +130,25 @@ def _strip_json_fence(content: str) -> str:
         if len(lines) >= 3:
             return "\n".join(lines[1:-1]).strip()
     return stripped
+
+
+_NAME_FILLER = frozenset({
+    "a", "an", "and", "as", "be", "build", "create", "for", "from", "give", "it",
+    "make", "of", "patch", "sound", "that", "the", "then", "this", "to", "use", "very",
+    "with",
+})
+
+
+def _fresh_name(request: str, current_name: str) -> str:
+    """Derive a readable JUNO-safe name when a model omits or repeats one."""
+    words = [
+        word for word in re.findall(r"[A-Za-z0-9]+", request)
+        if word.lower() not in _NAME_FILLER
+    ]
+    candidate = "".join(word.capitalize() for word in words[:3])[:12] or "VARIATION"
+    if candidate.casefold() == current_name.casefold():
+        candidate = f"{candidate[:10]}V2"
+    return candidate
 
 
 class OpenAICompatiblePlanner:
@@ -225,8 +246,11 @@ class OpenAICompatiblePlanner:
         except (KeyError, IndexError) as error:
             raise PlannerError("LLM endpoint response has no assistant message content") from error
         try:
-            return PatchChangePlan.from_dict(json.loads(_strip_json_fence(content)))
+            plan = PatchChangePlan.from_dict(json.loads(_strip_json_fence(content)))
         except json.JSONDecodeError as error:
             raise PlannerError(f"LLM returned invalid JSON: {error}") from error
         except PatchValidationError as error:
             raise PlannerError(f"LLM returned an invalid patch-change plan: {error}") from error
+        if plan.name is None or plan.name.casefold() == patch.name.casefold():
+            plan = replace(plan, name=_fresh_name(request, patch.name))
+        return plan

@@ -115,7 +115,7 @@ The randomizer uses a JUNO-oriented vocabulary covering sound role, mood, tonal 
 
 ### Patch history
 
-Every successful AI generation is automatically written to the local `.patchmaker/patches` library with its full validated patch, timestamp, source prompt, explanation, and parent-version ID. The GUI lists saved generations newest-first; selecting one restores it as the current result and puts its original prompt back into the editor. Creating another variation from a restored patch records the version relationship. The entire `.patchmaker` directory is Git-ignored.
+Every successful AI generation is automatically written to the local `.patchmaker/patches` library with its full validated patch, timestamp, source prompt, explanation, and parent-version ID. The GUI lists saved generations newest-first; selecting one restores it as the current result and puts its original prompt back into the editor. Creating another variation from a restored patch records the version relationship. Duplicate synth names receive visible version labels, and the × control deletes only the selected saved snapshot after confirmation. The entire `.patchmaker` directory is Git-ignored.
 
 To run without automatically opening a browser, or to use another local port:
 
