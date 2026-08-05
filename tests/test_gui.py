@@ -102,6 +102,8 @@ class GuiServiceTests(unittest.TestCase):
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
         self.assertIn("Promise.all([loadDemo(), randomizePrompt(false)])", script)
         self.assertIn('$("#test-connection").addEventListener', script)
+        self.assertIn('requestedModel === "openrouter/free"', script)
+        self.assertIn("showGenerationError(error.message)", script)
 
     def test_interface_defaults_to_openrouter_free(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")

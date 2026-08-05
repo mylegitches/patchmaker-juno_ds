@@ -18,6 +18,18 @@ function resetConnectionStatus() {
   node.querySelector("span").textContent = "Connection not tested";
 }
 
+function clearGenerationError() {
+  const node = $("#generation-error");
+  node.classList.add("hidden");
+  node.querySelector("span").textContent = "";
+}
+
+function showGenerationError(message) {
+  const node = $("#generation-error");
+  node.querySelector("span").textContent = message;
+  node.classList.remove("hidden");
+}
+
 [fields.baseUrl, fields.model, fields.apiKey].forEach(field => field.addEventListener("input", resetConnectionStatus));
 
 function status(message, type = "ready") {
@@ -119,8 +131,15 @@ async function testConnection() {
     const data = await api("/api/test-connection", {
       base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
     });
+    const requestedModel = fields.model.value.trim();
+    if (requestedModel === "openrouter/free" && data.model && data.model !== requestedModel) {
+      fields.model.value = data.model;
+      localStorage.setItem("patchmaker.model", data.model);
+    }
     node.className = "connection-result success";
-    node.querySelector("span").textContent = `${data.message} · ${data.model}`;
+    node.querySelector("span").textContent = requestedModel === "openrouter/free" && data.model !== requestedModel
+      ? `${data.message} · pinned ${data.model}`
+      : `${data.message} · ${data.model}`;
     toast("Model connection verified");
   } catch (error) {
     node.className = "connection-result failure";
@@ -138,11 +157,17 @@ async function loadFile(file) {
 async function refine() {
   if (!currentPatch) return toast("Load a starting patch first", true);
   if (!fields.request.value.trim()) return toast("Describe the sound you want", true);
-  const data = await api("/api/refine", {
-    patch: currentPatch, request: fields.request.value,
-    base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
-  });
-  renderPatch(data.patch, data.message); toast("Variation generated");
+  clearGenerationError();
+  try {
+    const data = await api("/api/refine", {
+      patch: currentPatch, request: fields.request.value,
+      base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
+    });
+    renderPatch(data.patch, data.message); toast("Variation generated");
+  } catch (error) {
+    showGenerationError(error.message);
+    throw error;
+  }
 }
 
 async function refreshPorts() {

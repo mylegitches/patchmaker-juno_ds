@@ -106,6 +106,8 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 
 The API key remains in the browser session and is sent only to the local Patchmaker process for the model request. The endpoint URL and model ID are remembered by the browser; the key is not persisted. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
 
+When testing `openrouter/free`, the GUI pins the exact compatible model returned by the successful test so the generation request does not get routed to a different model with different structured-output behavior. Generation failures remain visible below the prompt with their complete error message.
+
 New browser profiles default to OpenRouter at `https://openrouter.ai/api/v1` with the capability-aware `openrouter/free` model router. You can replace either field with another OpenAI-compatible endpoint or a specific model at any time.
 
 The randomizer uses a JUNO-oriented vocabulary covering sound role, mood, tonal and source character, register, density, filtering, filter and amplifier envelopes, modulation, stereo image, space, tuning, articulation, performance behavior, dynamics, and era/genre. Every dimension maps back to supported semantic patch controls. A descriptor recipe layer translates beginner-friendly words such as “warm,” “plucky,” “lush,” “wide,” and “haunting” into concrete synthesis guidance before the request reaches the model.
