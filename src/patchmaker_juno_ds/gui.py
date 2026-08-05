@@ -14,6 +14,7 @@ from importlib.resources import files
 from typing import Callable, Mapping
 
 from .client import JunoClient
+from .configuration import read_local_env, update_local_env
 from .designer import PatchChangePlan, SoundDesigner
 from .errors import PatchmakerError, PatchValidationError, PlannerError
 from .mido_transport import MidoTransport, port_names
@@ -67,7 +68,10 @@ def _device_id(value: object) -> int:
 
 
 def _configuration_value(name: str) -> str | None:
-    """Read process configuration, then the persistent Windows user environment."""
+    """Read local `.env`, process configuration, then Windows user environment."""
+    local = read_local_env().get(name)
+    if local:
+        return local
     value = os.environ.get(name)
     if value:
         return value
@@ -110,6 +114,34 @@ class GuiService:
             }
         if path == "/api/prompt-attributes":
             return {"attributes": {key: list(values) for key, values in SYNTH_SOUND_ATTRIBUTES.items()}}
+        if path == "/api/configuration":
+            return {
+                "base_url": _configuration_value("PATCHMAKER_LLM_BASE_URL") or "https://openrouter.ai/api/v1",
+                "model": _configuration_value("PATCHMAKER_LLM_MODEL") or "openrouter/free",
+                "api_key_configured": bool(_configuration_value("PATCHMAKER_LLM_API_KEY")),
+                "storage": ".env",
+            }
+        if path == "/api/save-configuration":
+            base_url = _required_string(data.get("base_url"), "base_url")
+            model = _required_string(data.get("model"), "model")
+            supplied_key = data.get("api_key")
+            if supplied_key is not None and not isinstance(supplied_key, str):
+                raise PatchValidationError("api_key must be a string")
+            api_key = supplied_key.strip() if isinstance(supplied_key, str) else ""
+            if not api_key:
+                api_key = _configuration_value("PATCHMAKER_LLM_API_KEY") or ""
+            update_local_env(
+                {
+                    "PATCHMAKER_LLM_API_KEY": api_key,
+                    "PATCHMAKER_LLM_BASE_URL": base_url,
+                    "PATCHMAKER_LLM_MODEL": model,
+                }
+            )
+            return {
+                "message": "Settings saved locally",
+                "api_key_configured": bool(api_key),
+                "storage": ".env",
+            }
         if path == "/api/test-connection":
             base_url = _required_string(
                 data.get("base_url") or _configuration_value("PATCHMAKER_LLM_BASE_URL"), "base_url"

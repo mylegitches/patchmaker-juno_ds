@@ -104,7 +104,7 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 - Download the refined JSON patch
 - Discover MIDI ports, read the current JUNO-DS patch, and send a result to its temporary edit buffer
 
-The API key remains in the browser session and is sent only to the local Patchmaker process for the model request. The endpoint URL and model ID are remembered by the browser; the key is not persisted. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
+The model panel can save the API key, endpoint URL, and model ID to a repository-local `.env` file. This plaintext file is Git-ignored and is read automatically on later launches. Saved keys are never returned to browser JavaScript; the GUI reports only whether one is configured. A newly pasted key exists in the browser only until it is saved or the page closes. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
 
 When testing `openrouter/free`, the GUI pins the exact compatible model returned by the successful test so the generation request does not get routed to a different model with different structured-output behavior. Generation failures remain visible below the prompt with their complete error message.
 

@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 import threading
 import unittest
 import urllib.error
@@ -7,6 +8,7 @@ import urllib.request
 from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
 from importlib.resources import files
+from pathlib import Path
 from unittest.mock import patch
 
 from patchmaker_juno_ds.designer import PatchChangePlan
@@ -46,8 +48,33 @@ class GuiServiceTests(unittest.TestCase):
         self.assertTrue(patch.tone_parameters[0].enabled)
 
     def test_configuration_prefers_process_environment(self) -> None:
-        with patch.dict(os.environ, {"PATCHMAKER_TEST_VALUE": "process-value"}):
-            self.assertEqual(_configuration_value("PATCHMAKER_TEST_VALUE"), "process-value")
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = str(Path(directory, ".env"))
+            with patch.dict(
+                os.environ,
+                {"PATCHMAKER_ENV_FILE": env_path, "PATCHMAKER_TEST_VALUE": "process-value"},
+            ):
+                self.assertEqual(_configuration_value("PATCHMAKER_TEST_VALUE"), "process-value")
+
+    def test_gui_saves_and_reads_local_configuration_without_returning_key(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = str(Path(directory, ".env"))
+            with patch.dict(os.environ, {"PATCHMAKER_ENV_FILE": env_path}, clear=False):
+                saved = self.service.dispatch(
+                    "/api/save-configuration",
+                    {
+                        "base_url": "https://router.test/v1",
+                        "model": "author/model:free",
+                        "api_key": "local-secret",
+                    },
+                )
+                self.assertTrue(saved["api_key_configured"])
+                self.assertNotIn("local-secret", json.dumps(saved))
+                loaded = self.service.dispatch("/api/configuration")
+                self.assertEqual(loaded["base_url"], "https://router.test/v1")
+                self.assertEqual(loaded["model"], "author/model:free")
+                self.assertTrue(loaded["api_key_configured"])
+                self.assertNotIn("local-secret", json.dumps(loaded))
 
     def test_validate_normalizes_patch(self) -> None:
         result = self.service.dispatch("/api/validate", {"patch": demo_patch().to_dict()})
@@ -100,8 +127,9 @@ class GuiServiceTests(unittest.TestCase):
 
     def test_interface_loads_default_patch_on_startup(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")
-        self.assertIn("Promise.all([loadDemo(), randomizePrompt(false)])", script)
+        self.assertIn("loadConfiguration()", script)
         self.assertIn('$("#test-connection").addEventListener', script)
+        self.assertIn('$("#save-configuration").addEventListener', script)
         self.assertIn('requestedModel === "openrouter/free"', script)
         self.assertIn("showGenerationError(error.message)", script)
 

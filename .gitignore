@@ -6,3 +6,6 @@ __pycache__/
 .venv/
 build/
 dist/
+.env
+.env.local
+.env.*.local

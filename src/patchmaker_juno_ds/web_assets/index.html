@@ -39,9 +39,11 @@
         <div class="section-heading"><span>02</span><h2>Model connection</h2></div>
         <label>API endpoint<input id="base-url" placeholder="https://openrouter.ai/api/v1"></label>
         <label>Model<input id="model" placeholder="openrouter/free"></label>
-        <label>API key <em>session only</em><input id="api-key" type="password" autocomplete="off" placeholder="Paste your API key here"></label>
-        <small class="field-help">Enter a key directly, or leave blank to use the configured environment key. It is never saved in the browser.</small>
+        <label>API key <em>local .env</em><input id="api-key" type="password" autocomplete="off" placeholder="Paste your API key here"></label>
+        <small class="field-help" id="key-help">Paste a key, then save it to the local Git-ignored .env file. Saved keys are never sent back to the browser.</small>
+        <button class="button ghost full" id="save-configuration">Save settings locally</button>
         <button class="button test-button full" id="test-connection"><span>Test connection</span><b>◎</b></button>
+        <div class="save-result" id="save-result"></div>
         <div class="connection-result" id="connection-result"><i></i><span>Connection not tested</span></div>
       </section>
 

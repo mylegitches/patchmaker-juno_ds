@@ -7,10 +7,8 @@ const fields = {
   inputPort: $("#input-port"), outputPort: $("#output-port"), request: $("#request")
 };
 
-fields.baseUrl.value = localStorage.getItem("patchmaker.baseUrl") || "https://openrouter.ai/api/v1";
-fields.model.value = localStorage.getItem("patchmaker.model") || "openrouter/free";
-fields.baseUrl.addEventListener("change", () => localStorage.setItem("patchmaker.baseUrl", fields.baseUrl.value));
-fields.model.addEventListener("change", () => localStorage.setItem("patchmaker.model", fields.model.value));
+fields.baseUrl.value = "https://openrouter.ai/api/v1";
+fields.model.value = "openrouter/free";
 
 function resetConnectionStatus() {
   const node = $("#connection-result");
@@ -31,6 +29,39 @@ function showGenerationError(message) {
 }
 
 [fields.baseUrl, fields.model, fields.apiKey].forEach(field => field.addEventListener("input", resetConnectionStatus));
+
+async function loadConfiguration() {
+  const data = await api("/api/configuration", {});
+  fields.baseUrl.value = data.base_url;
+  fields.model.value = data.model;
+  if (data.api_key_configured) {
+    fields.apiKey.placeholder = "Saved key configured in .env";
+    $("#key-help").textContent = "A saved key is configured in the local .env file. Paste a replacement only when you want to change it.";
+  }
+}
+
+async function saveConfiguration() {
+  const node = $("#save-result");
+  node.className = "save-result";
+  node.textContent = "Saving to local .env…";
+  try {
+    const data = await api("/api/save-configuration", {
+      base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
+    });
+    fields.apiKey.value = "";
+    fields.apiKey.placeholder = data.api_key_configured ? "Saved key configured in .env" : "No key configured";
+    $("#key-help").textContent = data.api_key_configured
+      ? "A saved key is configured in the local .env file. Paste a replacement only when you want to change it."
+      : "No API key is saved. Paste one above and save again if your endpoint requires authentication.";
+    node.className = "save-result success";
+    node.textContent = `${data.message} · ${data.storage}`;
+    resetConnectionStatus();
+    toast("Model settings saved to .env");
+  } catch (error) {
+    node.className = "save-result failure";
+    node.textContent = error.message;
+  }
+}
 
 function status(message, type = "ready") {
   const node = $("#app-status");
@@ -134,7 +165,6 @@ async function testConnection() {
     const requestedModel = fields.model.value.trim();
     if (requestedModel === "openrouter/free" && data.model && data.model !== requestedModel) {
       fields.model.value = data.model;
-      localStorage.setItem("patchmaker.model", data.model);
     }
     node.className = "connection-result success";
     node.querySelector("span").textContent = requestedModel === "openrouter/free" && data.model !== requestedModel
@@ -220,6 +250,7 @@ dropzone.addEventListener("drop", event => event.dataTransfer.files[0] && loadFi
 
 $("#demo-button").addEventListener("click", () => loadDemo().catch(() => {}));
 $("#randomize-prompt").addEventListener("click", () => randomizePrompt().catch(() => {}));
+$("#save-configuration").addEventListener("click", saveConfiguration);
 $("#test-connection").addEventListener("click", testConnection);
 $("#refine-button").addEventListener("click", () => refine().catch(() => {}));
 $("#refresh-ports").addEventListener("click", () => refreshPorts().catch(() => {}));
@@ -230,4 +261,4 @@ document.querySelectorAll("[data-prompt]").forEach(button => button.addEventList
 
 // The GUI is immediately usable: it always starts with both a neutral,
 // validated patch and a fully formed sound description. Both remain editable.
-Promise.all([loadDemo(), randomizePrompt(false)]).catch(() => {});
+Promise.all([loadDemo(), randomizePrompt(false), loadConfiguration()]).catch(() => {});
