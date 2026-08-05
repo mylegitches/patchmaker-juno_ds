@@ -11,6 +11,7 @@ from .client import JunoClient
 from .codec import decode_edit_buffer, encode_edit_buffer
 from .designer import SoundDesigner
 from .errors import PatchmakerError, PlannerError
+from .gui import serve_gui
 from .mido_transport import MidoTransport, port_names
 from .model import JunoPatch
 from .openai_compatible import OpenAICompatiblePlanner
@@ -49,6 +50,10 @@ def build_parser() -> argparse.ArgumentParser:
     refine.add_argument("--base-url", default=os.environ.get("PATCHMAKER_LLM_BASE_URL"))
     refine.add_argument("--model", default=os.environ.get("PATCHMAKER_LLM_MODEL"))
     refine.add_argument("--timeout", type=float, default=60.0)
+
+    gui = commands.add_parser("gui", help="open the local browser interface")
+    gui.add_argument("--port", type=int, default=8765)
+    gui.add_argument("--no-browser", action="store_true")
 
     commands.add_parser("list-ports", help="list MIDI ports (requires the midi extra)")
 
@@ -100,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
             result.patch.save(args.output)
             print(result.plan.explanation)
             print(f"Wrote {args.output}")
+        elif args.command == "gui":
+            serve_gui(port=args.port, open_browser=not args.no_browser)
         elif args.command == "list-ports":
             inputs, outputs = port_names()
             print("Inputs:")

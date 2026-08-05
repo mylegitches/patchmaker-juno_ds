@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 
 from patchmaker_juno_ds.cli import main
+from patchmaker_juno_ds.cli import build_parser
 from patchmaker_juno_ds.codec import encode_edit_buffer
 from patchmaker_juno_ds.model import JunoPatch
 
@@ -10,6 +11,12 @@ from .helpers import make_patch
 
 
 class CliTests(unittest.TestCase):
+    def test_gui_command_defaults(self) -> None:
+        args = build_parser().parse_args(["gui", "--no-browser"])
+        self.assertEqual(args.command, "gui")
+        self.assertEqual(args.port, 8765)
+        self.assertTrue(args.no_browser)
+
     def test_file_conversion_workflow(self) -> None:
         patch = make_patch()
         with tempfile.TemporaryDirectory() as directory:

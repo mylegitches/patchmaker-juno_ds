@@ -20,3 +20,6 @@ patchmaker-juno = "patchmaker_juno_ds.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+patchmaker_juno_ds = ["web_assets/*.html", "web_assets/*.css", "web_assets/*.js"]

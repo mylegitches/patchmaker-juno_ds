@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patchmaker · JUNO-DS</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <div class="brand-mark">PM</div>
+    <div>
+      <p class="eyebrow">AI SOUND DESIGNER</p>
+      <h1>Patchmaker <span>JUNO-DS</span></h1>
+    </div>
+    <div class="status" id="app-status"><i></i><span>Ready</span></div>
+  </header>
+
+  <main class="shell">
+    <aside class="sidebar">
+      <section class="panel source-panel">
+        <div class="section-heading"><span>01</span><h2>Starting patch</h2></div>
+        <div class="dropzone" id="dropzone" tabindex="0">
+          <input type="file" id="patch-file" accept=".json,application/json" hidden>
+          <div class="drop-icon">↥</div>
+          <strong>Drop patch JSON here</strong>
+          <small>or click to browse</small>
+        </div>
+        <button class="button ghost full" id="demo-button">Load demo patch</button>
+        <div class="loaded-patch hidden" id="loaded-patch">
+          <div><small>LOADED PATCH</small><strong id="loaded-name">—</strong></div>
+          <span id="loaded-category">—</span>
+        </div>
+      </section>
+
+      <section class="panel settings-panel">
+        <div class="section-heading"><span>02</span><h2>Model connection</h2></div>
+        <label>API endpoint<input id="base-url" placeholder="http://localhost:8000/v1"></label>
+        <label>Model<input id="model" placeholder="model-id"></label>
+        <label>API key <em>optional</em><input id="api-key" type="password" placeholder="Stored for this session only"></label>
+      </section>
+
+      <section class="panel hardware-panel">
+        <div class="section-heading">
+          <span>03</span><h2>JUNO connection</h2>
+          <button class="icon-button" id="refresh-ports" title="Refresh MIDI ports">↻</button>
+        </div>
+        <label>MIDI input<select id="input-port"><option value="">No port selected</option></select></label>
+        <label>MIDI output<select id="output-port"><option value="">No port selected</option></select></label>
+        <button class="button ghost full" id="read-button">Read current patch</button>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <p class="eyebrow">DESCRIBE THE DESTINATION</p>
+          <h2>What should this patch become?</h2>
+          <p>Use musical language. Patchmaker translates your intent into safe, validated JUNO parameters.</p>
+        </div>
+        <div class="prompt-wrap">
+          <textarea id="request" maxlength="4000" placeholder="A warm, haunting analog pad with a slow attack, wide stereo movement, and a darker top end…"></textarea>
+          <div class="prompt-footer">
+            <div class="suggestions">
+              <button data-prompt="Make it darker and soften the attack">Darker</button>
+              <button data-prompt="Add subtle movement and a longer release">More movement</button>
+              <button data-prompt="Make it wider with gentle detuning">Wider</button>
+            </div>
+            <button class="button primary" id="refine-button"><span>Generate variation</span><b>→</b></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="result-card hidden" id="result-card">
+        <div class="result-header">
+          <div>
+            <p class="eyebrow">CURRENT RESULT</p>
+            <h2 id="patch-name">—</h2>
+            <p id="explanation">Patch loaded and ready to refine.</p>
+          </div>
+          <div class="result-actions">
+            <button class="button ghost" id="download-button">Download JSON</button>
+            <button class="button hardware" id="send-button">Send to JUNO <span>⌁</span></button>
+          </div>
+        </div>
+        <div class="common-strip" id="common-parameters"></div>
+        <div class="tone-grid" id="tone-grid"></div>
+      </section>
+
+      <section class="empty-state" id="empty-state">
+        <div class="rings"><i></i><i></i><i></i><span>♫</span></div>
+        <h3>Your patch will appear here</h3>
+        <p>Load the demo, import a JSON patch, or read one from your JUNO-DS.</p>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

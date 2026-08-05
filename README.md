@@ -85,6 +85,31 @@ patchmaker-juno refine current-patch.json `
 
 Any service that implements the expected `/chat/completions` request and response shape can be substituted by changing the URL and model variables. Automated tests use a fake HTTP transport and never make a paid or external model call.
 
+### Local GUI
+
+Launch the browser interface from the repository environment:
+
+```powershell
+patchmaker-juno gui
+```
+
+Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local machine except the configured LLM request. From the interface you can:
+
+- Load and validate a patch JSON file, or start with the built-in demo patch
+- Configure any OpenAI-compatible endpoint and model
+- Describe and generate a patch variation
+- Inspect common parameters and all four tones
+- Download the refined JSON patch
+- Discover MIDI ports, read the current JUNO-DS patch, and send a result to its temporary edit buffer
+
+The API key remains in the browser session and is sent only to the local Patchmaker process for the model request. The endpoint URL and model ID are remembered by the browser; the key is not persisted. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
+
+To run without automatically opening a browser, or to use another local port:
+
+```powershell
+patchmaker-juno gui --no-browser --port 9000
+```
+
 ## Core workflows
 
 ### Text to patch
