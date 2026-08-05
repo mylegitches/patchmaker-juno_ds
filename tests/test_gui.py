@@ -15,6 +15,7 @@ from patchmaker_juno_ds.designer import PatchChangePlan
 from patchmaker_juno_ds.gui import GuiService, demo_patch, make_handler
 from patchmaker_juno_ds.gui import _configuration_value
 from patchmaker_juno_ds.model import JunoPatch
+from patchmaker_juno_ds.patch_library import PatchLibrary
 
 
 class FakePlanner:
@@ -36,9 +37,12 @@ class FakePlanner:
 
 class GuiServiceTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.library_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.library_directory.cleanup)
         self.service = GuiService(
             planner_factory=FakePlanner,
             ports_provider=lambda: (["JUNO IN"], ["JUNO OUT"]),
+            library=PatchLibrary(Path(self.library_directory.name)),
         )
 
     def test_demo_is_a_valid_patch(self) -> None:
@@ -97,6 +101,29 @@ class GuiServiceTests(unittest.TestCase):
         self.assertEqual(patch.common_parameters.cutoff_offset, -18)
         self.assertEqual(FakePlanner.init_args["api_key"], "secret")
         self.assertNotIn("secret", json.dumps(result))
+        self.assertEqual(result["record"]["name"], "DARKER PAD")
+
+    def test_generations_are_saved_and_can_be_reopened(self) -> None:
+        first = self.service.dispatch(
+            "/api/refine",
+            {
+                "patch": demo_patch().to_dict(), "request": "first version",
+                "base_url": "http://model.test/v1", "model": "test", "api_key": "key",
+            },
+        )
+        second = self.service.dispatch(
+            "/api/refine",
+            {
+                "patch": first["patch"], "request": "second version",
+                "base_url": "http://model.test/v1", "model": "test", "api_key": "key",
+                "parent_id": first["record"]["id"],
+            },
+        )
+        history = self.service.dispatch("/api/history")["patches"]
+        self.assertEqual(len(history), 2)
+        reopened = self.service.dispatch("/api/history/get", {"id": first["record"]["id"]})
+        self.assertEqual(JunoPatch.from_dict(reopened["patch"]), JunoPatch.from_dict(first["patch"]))
+        self.assertEqual(second["record"]["parent_id"], first["record"]["id"])
 
     def test_ports_are_json_friendly(self) -> None:
         self.assertEqual(
@@ -132,6 +159,8 @@ class GuiServiceTests(unittest.TestCase):
         self.assertIn('$("#save-configuration").addEventListener', script)
         self.assertIn('requestedModel === "openrouter/free"', script)
         self.assertIn("showGenerationError(error.message)", script)
+        self.assertIn("refreshHistory()", script)
+        self.assertIn("renderPatch(data.patch, data.message, data.record)", script)
 
     def test_interface_defaults_to_openrouter_free(self) -> None:
         script = files("patchmaker_juno_ds.web_assets").joinpath("app.js").read_text("utf-8")

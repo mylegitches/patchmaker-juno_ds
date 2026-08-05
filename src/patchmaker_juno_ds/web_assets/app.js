@@ -1,5 +1,6 @@
 const $ = (selector) => document.querySelector(selector);
 let currentPatch = null;
+let currentHistoryId = null;
 let toastTimer = null;
 
 const fields = {
@@ -111,8 +112,9 @@ function toneRow(label, value) {
   row.append(name, data); return row;
 }
 
-function renderPatch(patch, explanation = "Patch loaded and ready to refine.") {
+function renderPatch(patch, explanation = "Patch loaded and ready to refine.", record = null) {
   currentPatch = patch;
+  currentHistoryId = record ? record.id : null;
   const common = patch.parameters.common;
   $("#empty-state").classList.add("hidden");
   $("#result-card").classList.remove("hidden");
@@ -121,6 +123,9 @@ function renderPatch(patch, explanation = "Patch loaded and ready to refine.") {
   $("#loaded-category").textContent = patch.category_name;
   $("#patch-name").textContent = patch.name;
   $("#explanation").textContent = explanation;
+  $("#current-version").textContent = record
+    ? `Saved ${formatDate(record.created_at)}`
+    : "Unsaved working patch";
   const strip = $("#common-parameters"); strip.replaceChildren(
     metric("Category", patch.category_name), metric("Level", common.level),
     metric("Cutoff offset", signed(common.cutoff_offset)), metric("Attack offset", signed(common.attack_offset)),
@@ -140,6 +145,46 @@ function renderPatch(patch, explanation = "Patch loaded and ready to refine.") {
     );
     grid.append(card);
   });
+}
+
+function formatDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString([], {dateStyle: "medium", timeStyle: "short"});
+}
+
+async function refreshHistory() {
+  const data = await api("/api/history", {});
+  const list = $("#history-list");
+  $("#history-count").textContent = `${data.patches.length} ${data.patches.length === 1 ? "patch" : "patches"}`;
+  list.replaceChildren();
+  if (!data.patches.length) {
+    const empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = "Generated patches will be saved here automatically.";
+    list.append(empty);
+    return;
+  }
+  data.patches.forEach(record => {
+    const item = document.createElement("button");
+    item.className = `history-item${record.id === currentHistoryId ? " current" : ""}`;
+    const header = document.createElement("header");
+    const name = document.createElement("strong"); name.textContent = record.name;
+    const time = document.createElement("time"); time.textContent = formatDate(record.created_at);
+    header.append(name, time);
+    const request = document.createElement("p"); request.textContent = record.request;
+    const category = document.createElement("small"); category.textContent = record.category_name;
+    item.append(header, request, category);
+    item.addEventListener("click", () => loadHistoryPatch(record.id).catch(() => {}));
+    list.append(item);
+  });
+}
+
+async function loadHistoryPatch(id) {
+  const data = await api("/api/history/get", {id});
+  fields.request.value = data.record.request;
+  renderPatch(data.patch, data.message, data.record);
+  await refreshHistory();
+  toast("Saved patch loaded");
 }
 
 const signed = (value) => value > 0 ? `+${value}` : String(value);
@@ -191,9 +236,12 @@ async function refine() {
   try {
     const data = await api("/api/refine", {
       patch: currentPatch, request: fields.request.value,
-      base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value
+      base_url: fields.baseUrl.value, model: fields.model.value, api_key: fields.apiKey.value,
+      parent_id: currentHistoryId
     });
-    renderPatch(data.patch, data.message); toast("Variation generated");
+    renderPatch(data.patch, data.message, data.record);
+    await refreshHistory();
+    toast("Variation generated and saved");
   } catch (error) {
     showGenerationError(error.message);
     throw error;
@@ -257,8 +305,9 @@ $("#refresh-ports").addEventListener("click", () => refreshPorts().catch(() => {
 $("#read-button").addEventListener("click", () => readHardware().catch(error => toast(error.message, true)));
 $("#send-button").addEventListener("click", () => sendHardware().catch(error => toast(error.message, true)));
 $("#download-button").addEventListener("click", downloadPatch);
+$("#refresh-history").addEventListener("click", () => refreshHistory().catch(() => {}));
 document.querySelectorAll("[data-prompt]").forEach(button => button.addEventListener("click", () => fields.request.value = button.dataset.prompt));
 
 // The GUI is immediately usable: it always starts with both a neutral,
 // validated patch and a fully formed sound description. Both remain editable.
-Promise.all([loadDemo(), randomizePrompt(false), loadConfiguration()]).catch(() => {});
+Promise.all([loadDemo(), randomizePrompt(false), loadConfiguration(), refreshHistory()]).catch(() => {});

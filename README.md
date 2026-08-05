@@ -101,6 +101,7 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 - Describe and generate a patch variation
 - Start with an automatically randomized, editable sound description and generate another with **Randomize prompt**
 - Inspect common parameters and all four tones
+- Automatically save every successful generation to a persistent local patch library and reopen any earlier version
 - Download the refined JSON patch
 - Discover MIDI ports, read the current JUNO-DS patch, and send a result to its temporary edit buffer
 
@@ -111,6 +112,10 @@ When testing `openrouter/free`, the GUI pins the exact compatible model returned
 New browser profiles default to OpenRouter at `https://openrouter.ai/api/v1` with the capability-aware `openrouter/free` model router. You can replace either field with another OpenAI-compatible endpoint or a specific model at any time.
 
 The randomizer uses a JUNO-oriented vocabulary covering sound role, mood, tonal and source character, register, density, filtering, filter and amplifier envelopes, modulation, stereo image, space, tuning, articulation, performance behavior, dynamics, and era/genre. Every dimension maps back to supported semantic patch controls. A descriptor recipe layer translates beginner-friendly words such as “warm,” “plucky,” “lush,” “wide,” and “haunting” into concrete synthesis guidance before the request reaches the model.
+
+### Patch history
+
+Every successful AI generation is automatically written to the local `.patchmaker/patches` library with its full validated patch, timestamp, source prompt, explanation, and parent-version ID. The GUI lists saved generations newest-first; selecting one restores it as the current result and puts its original prompt back into the editor. Creating another variation from a restored patch records the version relationship. The entire `.patchmaker` directory is Git-ignored.
 
 To run without automatically opening a browser, or to use another local port:
 

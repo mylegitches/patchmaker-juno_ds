@@ -86,6 +86,7 @@
             <p class="eyebrow">CURRENT RESULT</p>
             <h2 id="patch-name">—</h2>
             <p id="explanation">Patch loaded and ready to refine.</p>
+            <small class="current-version" id="current-version">Unsaved working patch</small>
           </div>
           <div class="result-actions">
             <button class="button ghost" id="download-button">Download JSON</button>
@@ -94,6 +95,16 @@
         </div>
         <div class="common-strip" id="common-parameters"></div>
         <div class="tone-grid" id="tone-grid"></div>
+      </section>
+
+      <section class="history-card">
+        <div class="history-header">
+          <div><p class="eyebrow">LOCAL PATCH LIBRARY</p><h2>Previous generations</h2></div>
+          <div><span id="history-count">0 patches</span><button class="icon-button" id="refresh-history" title="Refresh patch history">↻</button></div>
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">Generated patches will be saved here automatically.</div>
+        </div>
       </section>
 
       <section class="empty-state" id="empty-state">

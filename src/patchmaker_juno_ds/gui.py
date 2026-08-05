@@ -20,6 +20,7 @@ from .errors import PatchmakerError, PatchValidationError, PlannerError
 from .mido_transport import MidoTransport, port_names
 from .model import JunoPatch
 from .openai_compatible import OpenAICompatiblePlanner
+from .patch_library import PatchLibrary
 from .prompt_randomizer import SYNTH_SOUND_ATTRIBUTES, randomize_prompt, resolve_sound_language
 from .spec import BLOCK_SPECS
 
@@ -96,10 +97,12 @@ class GuiService:
         planner_factory: Callable[..., object] = OpenAICompatiblePlanner,
         ports_provider: Callable[[], tuple[list[str], list[str]]] = port_names,
         transport_factory: Callable[[str, str], object] = MidoTransport,
+        library: PatchLibrary | None = None,
     ) -> None:
         self.planner_factory = planner_factory
         self.ports_provider = ports_provider
         self.transport_factory = transport_factory
+        self.library = library or PatchLibrary()
 
     def dispatch(self, path: str, payload: object | None = None) -> dict[str, object]:
         data = payload if isinstance(payload, Mapping) else {}
@@ -114,6 +117,16 @@ class GuiService:
             }
         if path == "/api/prompt-attributes":
             return {"attributes": {key: list(values) for key, values in SYNTH_SOUND_ATTRIBUTES.items()}}
+        if path == "/api/history":
+            return {"patches": self.library.list()}
+        if path == "/api/history/get":
+            record_id = _required_string(data.get("id"), "id")
+            record = self.library.load(record_id)
+            return {
+                "record": record.summary(),
+                "patch": record.patch.to_dict(),
+                "message": record.explanation,
+            }
         if path == "/api/configuration":
             return {
                 "base_url": _configuration_value("PATCHMAKER_LLM_BASE_URL") or "https://openrouter.ai/api/v1",
@@ -190,10 +203,20 @@ class GuiService:
             )
             result = SoundDesigner(planner).refine(patch, request)  # type: ignore[arg-type]
             plan = asdict(result.plan)
+            parent_value = data.get("parent_id")
+            if parent_value is not None and not isinstance(parent_value, str):
+                raise PatchValidationError("parent_id must be a string or null")
+            record = self.library.save(
+                result.patch,
+                request=request,
+                explanation=result.plan.explanation,
+                parent_id=parent_value,
+            )
             return {
                 "patch": result.patch.to_dict(),
                 "plan": plan,
                 "message": result.plan.explanation,
+                "record": record.summary(),
             }
         if path == "/api/read":
             input_port = _required_string(data.get("input_port"), "input_port")
