@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "patchmaker-juno-ds"
+version = "0.1.0"
+description = "Hardware-safe Phase 1 patch API for the Roland JUNO-DS"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Patchmaker JUNO-DS contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+midi = ["mido>=1.3,<2", "python-rtmidi>=1.5,<2"]
+
+[project.scripts]
+patchmaker-juno = "patchmaker_juno_ds.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -2,6 +2,68 @@
 
 An AI-assisted patch creator for the **Roland JUNO-DS**. The goal is to let musicians design synthesizer sounds from natural-language descriptions or reference audio without manually programming every oscillator, filter, envelope, effect, and modulation parameter.
 
+## Phase 1 prototype
+
+The repository now includes a hardware-safe Python prototype of the JUNO patch API:
+
+- Strict, versioned JSON validation for a complete JUNO-DS patch
+- Lossless preservation of all nine temporary-patch data blocks
+- Human-editable patch name and category
+- Deterministic Roland RQ1/DT1 framing and checksum validation
+- `.syx` to JSON and JSON to `.syx` conversion
+- Transport-neutral read/write API with an optional Mido hardware adapter
+- Explicit confirmation before the CLI writes to the temporary edit buffer
+- Standard-library unit and mock-transport tests
+
+The unnamed device parameters remain as validated 7-bit block arrays. This is deliberate: the prototype preserves every byte without claiming semantic parameter offsets that have not yet been verified.
+
+### Run the tests
+
+From the repository root:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m unittest discover -v
+```
+
+### Install the CLI
+
+For file conversion only:
+
+```powershell
+python -m pip install -e .
+```
+
+For physical MIDI ports, install the optional adapter:
+
+```powershell
+python -m pip install -e ".[midi]"
+patchmaker-juno list-ports
+```
+
+### File workflow
+
+```powershell
+patchmaker-juno syx-to-json current-patch.syx current-patch.json
+patchmaker-juno validate current-patch.json
+patchmaker-juno json-to-syx current-patch.json current-patch.syx
+```
+
+### Hardware workflow
+
+```powershell
+patchmaker-juno read current-patch.json `
+  --input-port "JUNO-DS" `
+  --output-port "JUNO-DS"
+
+patchmaker-juno write current-patch.json `
+  --input-port "JUNO-DS" `
+  --output-port "JUNO-DS" `
+  --confirm-temporary-write
+```
+
+`write` targets the temporary edit buffer; it does not store or overwrite a user patch. Port names vary by operating system. The hardware workflow requires a connected JUNO-DS and has not been exercised by the repository's automated tests.
+
 ## Core workflows
 
 ### Text to patch
