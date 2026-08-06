@@ -2,6 +2,127 @@
 
 An AI-assisted patch creator for the **Roland JUNO-DS**. The goal is to let musicians design synthesizer sounds from natural-language descriptions or reference audio without manually programming every oscillator, filter, envelope, effect, and modulation parameter.
 
+## Phase 1 prototype
+
+The repository now includes a hardware-safe Python prototype of the JUNO patch API:
+
+- Strict, versioned JSON validation for a complete JUNO-DS patch
+- Lossless preservation of all nine temporary-patch data blocks
+- Human-editable patch name and category
+- Verified semantic editing for core patch, tone, filter, envelope, and LFO parameters
+- Deterministic Roland RQ1/DT1 framing and checksum validation
+- `.syx` to JSON and JSON to `.syx` conversion
+- Transport-neutral read/write API with an optional Mido hardware adapter
+- Explicit confirmation before the CLI writes to the temporary edit buffer
+- Standard-library unit and mock-transport tests
+
+The unnamed device parameters remain as validated 7-bit block arrays. This is deliberate: the prototype preserves every byte without claiming semantic parameter offsets that have not yet been verified.
+
+Semantic JSON fields are derived from—and written back into—the lossless blocks. Current coverage includes patch level/tuning/portamento and sound-shaping offsets; tone enable/level/tuning/pan; waveform number; TVF filter type, cutoff, resonance, and envelope; TVA envelope; and LFO1 waveform/depth. Unmapped bytes remain untouched.
+
+### Run the tests
+
+From the repository root:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m unittest discover -v
+```
+
+### Install the CLI
+
+For file conversion only:
+
+```powershell
+python -m pip install -e .
+```
+
+For physical MIDI ports, install the optional adapter:
+
+```powershell
+python -m pip install -e ".[midi]"
+patchmaker-juno list-ports
+```
+
+### File workflow
+
+```powershell
+patchmaker-juno syx-to-json current-patch.syx current-patch.json
+patchmaker-juno validate current-patch.json
+patchmaker-juno json-to-syx current-patch.json current-patch.syx
+```
+
+### Hardware workflow
+
+```powershell
+patchmaker-juno read current-patch.json `
+  --input-port "JUNO-DS" `
+  --output-port "JUNO-DS"
+
+patchmaker-juno write current-patch.json `
+  --input-port "JUNO-DS" `
+  --output-port "JUNO-DS" `
+  --confirm-temporary-write
+```
+
+`write` targets the temporary edit buffer; it does not store or overwrite a user patch. Port names vary by operating system. The hardware workflow requires a connected JUNO-DS and has not been exercised by the repository's automated tests.
+
+### LLM refinement
+
+Patchmaker uses a provider-neutral planner interface. The included adapter calls an OpenAI-compatible Chat Completions endpoint and asks it for a semantic change plan; the deterministic patch API validates and applies that plan. Raw blocks, SysEx addresses, and device bytes are never sent to or accepted from the model.
+
+Configure the adapter with environment variables. The API key is optional for local endpoints and is intentionally not accepted as a command-line argument:
+
+```powershell
+$env:PATCHMAKER_LLM_BASE_URL = "http://localhost:8000/v1"
+$env:PATCHMAKER_LLM_MODEL = "your-model-id"
+$env:PATCHMAKER_LLM_API_KEY = "your-api-key" # omit when not required
+
+patchmaker-juno refine current-patch.json `
+  "Make it darker, soften the attack, and add subtle movement" `
+  refined-patch.json
+```
+
+Any service that implements the expected `/chat/completions` request and response shape can be substituted by changing the URL and model variables. Automated tests use a fake HTTP transport and never make a paid or external model call.
+
+### Local GUI
+
+Launch the browser interface from the repository environment:
+
+```powershell
+patchmaker-juno gui
+```
+
+Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local machine except the configured LLM request. From the interface you can:
+
+- Start immediately with an automatically loaded neutral patch, then optionally load and validate another patch JSON file
+- Configure any OpenAI-compatible endpoint and model
+- Paste an API key directly into the session-only web field and test the endpoint, model, and authentication before generating
+- Describe and generate a patch variation
+- Start with an automatically randomized, editable sound description and generate another with **Randomize prompt**
+- Inspect common parameters and all four tones
+- Automatically save every successful generation to a persistent local patch library and reopen any earlier version
+- Download the refined JSON patch
+- Discover MIDI ports, read the current JUNO-DS patch, and send a result to its temporary edit buffer
+
+The model panel can save the API key, endpoint URL, and model ID to a repository-local `.env` file. This plaintext file is Git-ignored and is read automatically on later launches. Saved keys are never returned to browser JavaScript; the GUI reports only whether one is configured. A newly pasted key exists in the browser only until it is saved or the page closes. Hardware writes still require an explicit confirmation dialog and target only the temporary edit buffer.
+
+When testing `openrouter/free`, the GUI pins the exact compatible model returned by the successful test so the generation request does not get routed to a different model with different structured-output behavior. Generation failures remain visible below the prompt with their complete error message.
+
+New browser profiles default to OpenRouter at `https://openrouter.ai/api/v1` with the capability-aware `openrouter/free` model router. You can replace either field with another OpenAI-compatible endpoint or a specific model at any time.
+
+The randomizer uses a JUNO-oriented vocabulary covering sound role, mood, tonal and source character, register, density, filtering, filter and amplifier envelopes, modulation, stereo image, space, tuning, articulation, performance behavior, dynamics, and era/genre. Every dimension maps back to supported semantic patch controls. A descriptor recipe layer translates beginner-friendly words such as “warm,” “plucky,” “lush,” “wide,” and “haunting” into concrete synthesis guidance before the request reaches the model.
+
+### Patch history
+
+Every successful AI generation is automatically written to the local `.patchmaker/patches` library with its full validated patch, timestamp, source prompt, explanation, and parent-version ID. The GUI lists saved generations newest-first; selecting one restores it as the current result and puts its original prompt back into the editor. Creating another variation from a restored patch records the version relationship. Duplicate synth names receive visible version labels, and the × control deletes only the selected saved snapshot after confirmation. The entire `.patchmaker` directory is Git-ignored.
+
+To run without automatically opening a browser, or to use another local port:
+
+```powershell
+patchmaker-juno gui --no-browser --port 9000
+```
+
 ## Core workflows
 
 ### Text to patch

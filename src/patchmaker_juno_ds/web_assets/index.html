@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Patchmaker · JUNO-DS</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <header class="topbar">
+    <div class="brand-mark">PM</div>
+    <div>
+      <p class="eyebrow">AI SOUND DESIGNER</p>
+      <h1>Patchmaker <span>JUNO-DS</span></h1>
+    </div>
+    <div class="status" id="app-status"><i></i><span>Ready</span></div>
+  </header>
+
+  <main class="shell">
+    <aside class="sidebar">
+      <section class="panel source-panel">
+        <div class="section-heading"><span>01</span><h2>Starting patch</h2></div>
+        <div class="dropzone" id="dropzone" tabindex="0">
+          <input type="file" id="patch-file" accept=".json,application/json" hidden>
+          <div class="drop-icon">↥</div>
+          <strong>Drop patch JSON here</strong>
+          <small>or click to browse</small>
+        </div>
+        <button class="button ghost full" id="demo-button">Load demo patch</button>
+        <div class="loaded-patch hidden" id="loaded-patch">
+          <div><small>LOADED PATCH</small><strong id="loaded-name">—</strong></div>
+          <span id="loaded-category">—</span>
+        </div>
+      </section>
+
+      <section class="panel settings-panel">
+        <div class="section-heading"><span>02</span><h2>Model connection</h2></div>
+        <label>API endpoint<input id="base-url" placeholder="https://openrouter.ai/api/v1"></label>
+        <label>Model<input id="model" placeholder="openrouter/free"></label>
+        <label>API key <em>local .env</em><input id="api-key" type="password" autocomplete="off" placeholder="Paste your API key here"></label>
+        <small class="field-help" id="key-help">Paste a key, then save it to the local Git-ignored .env file. Saved keys are never sent back to the browser.</small>
+        <button class="button ghost full" id="save-configuration">Save settings locally</button>
+        <button class="button test-button full" id="test-connection"><span>Test connection</span><b>◎</b></button>
+        <div class="save-result" id="save-result"></div>
+        <div class="connection-result" id="connection-result"><i></i><span>Connection not tested</span></div>
+      </section>
+
+      <section class="panel hardware-panel">
+        <div class="section-heading">
+          <span>03</span><h2>JUNO connection</h2>
+          <button class="icon-button" id="refresh-ports" title="Refresh MIDI ports">↻</button>
+        </div>
+        <label>MIDI input<select id="input-port"><option value="">No port selected</option></select></label>
+        <label>MIDI output<select id="output-port"><option value="">No port selected</option></select></label>
+        <button class="button ghost full" id="read-button">Read current patch</button>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <section class="hero-card">
+        <div class="hero-copy">
+          <p class="eyebrow">DESCRIBE THE DESTINATION</p>
+          <h2>What should this patch become?</h2>
+          <p>Use musical language. Patchmaker translates your intent into safe, validated JUNO parameters.</p>
+        </div>
+        <div class="prompt-wrap">
+          <textarea id="request" maxlength="4000" placeholder="A warm, haunting analog pad with a slow attack, wide stereo movement, and a darker top end…"></textarea>
+          <div class="prompt-footer">
+            <div class="suggestions">
+              <button class="randomize" id="randomize-prompt" title="Create another random sound description">↻ Randomize prompt</button>
+              <button data-prompt="Make it darker and soften the attack">Darker</button>
+              <button data-prompt="Add subtle movement and a longer release">More movement</button>
+              <button data-prompt="Make it wider with gentle detuning">Wider</button>
+            </div>
+            <button class="button primary" id="refine-button"><span>Generate variation</span><b>→</b></button>
+          </div>
+          <div class="generation-error hidden" id="generation-error"><strong>Generation failed</strong><span></span></div>
+        </div>
+      </section>
+
+      <section class="result-card hidden" id="result-card">
+        <div class="result-header">
+          <div>
+            <p class="eyebrow">CURRENT RESULT</p>
+            <h2 id="patch-name">—</h2>
+            <p id="explanation">Patch loaded and ready to refine.</p>
+            <small class="current-version" id="current-version">Unsaved working patch</small>
+          </div>
+          <div class="result-actions">
+            <button class="button ghost" id="download-button">Download JSON</button>
+            <button class="button hardware" id="send-button">Send to JUNO <span>⌁</span></button>
+          </div>
+        </div>
+        <div class="common-strip" id="common-parameters"></div>
+        <div class="tone-grid" id="tone-grid"></div>
+      </section>
+
+      <section class="history-card">
+        <div class="history-header">
+          <div><p class="eyebrow">LOCAL PATCH LIBRARY</p><h2>Previous generations</h2></div>
+          <div><span id="history-count">0 patches</span><button class="icon-button" id="refresh-history" title="Refresh patch history">↻</button></div>
+        </div>
+        <div class="history-list" id="history-list">
+          <div class="history-empty">Generated patches will be saved here automatically.</div>
+        </div>
+      </section>
+
+      <section class="empty-state" id="empty-state">
+        <div class="rings"><i></i><i></i><i></i><span>♫</span></div>
+        <h3>Your patch will appear here</h3>
+        <p>Load the demo, import a JSON patch, or read one from your JUNO-DS.</p>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
