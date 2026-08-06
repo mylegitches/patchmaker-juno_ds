@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import asdict, replace
@@ -151,6 +152,18 @@ def _fresh_name(request: str, current_name: str) -> str:
     return candidate
 
 
+def _safe_patch_name(model_name: str | None, request: str, current_name: str) -> str:
+    """Convert arbitrary model text into a non-empty 12-character JUNO name."""
+    if model_name is None:
+        return _fresh_name(request, current_name)
+    normalized = unicodedata.normalize("NFKD", model_name).encode("ascii", "ignore").decode()
+    cleaned = "".join(character for character in normalized if 0x20 <= ord(character) <= 0x7E)
+    cleaned = " ".join(cleaned.split())[:12].strip()
+    if not cleaned or cleaned.casefold() == current_name.casefold():
+        return _fresh_name(request, current_name)
+    return cleaned
+
+
 class OpenAICompatiblePlanner:
     """Plan patch changes through a configurable `/chat/completions` endpoint."""
 
@@ -251,6 +264,7 @@ class OpenAICompatiblePlanner:
             raise PlannerError(f"LLM returned invalid JSON: {error}") from error
         except PatchValidationError as error:
             raise PlannerError(f"LLM returned an invalid patch-change plan: {error}") from error
-        if plan.name is None or plan.name.casefold() == patch.name.casefold():
-            plan = replace(plan, name=_fresh_name(request, patch.name))
+        safe_name = _safe_patch_name(plan.name, request, patch.name)
+        if safe_name != plan.name:
+            plan = replace(plan, name=safe_name)
         return plan

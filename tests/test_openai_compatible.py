@@ -84,6 +84,24 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         plan = planner.create_plan("hypnotic shimmering drone", make_patch())
         self.assertEqual(plan.name, "HypnoticShim")
 
+    def test_long_and_non_ascii_model_names_are_made_juno_safe(self) -> None:
+        transport = RecordingTransport(
+            completion('{"explanation":"reshape","name":"Hypnotic Shimmering Drone","common":{"level":100}}')
+        )
+        planner = OpenAICompatiblePlanner(
+            base_url="http://example.test/v1", model="model", transport=transport
+        )
+        long_plan = planner.create_plan("shimmering drone", make_patch())
+        self.assertEqual(long_plan.name, "Hypnotic Shi")
+        self.assertEqual(long_plan.apply(make_patch()).name, "Hypnotic Shi")
+
+        transport.response = completion(
+            '{"explanation":"reshape","name":"Ångström✨","common":{"level":100}}'
+        )
+        unicode_plan = planner.create_plan("metallic pad", make_patch())
+        self.assertEqual(unicode_plan.name, "Angstrom")
+        self.assertEqual(unicode_plan.apply(make_patch()).name, "Angstrom")
+
     def test_api_key_is_optional_for_local_endpoints(self) -> None:
         transport = RecordingTransport(
             completion('{"explanation":"rename","name":"LOCAL PATCH"}')
