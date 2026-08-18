@@ -87,6 +87,8 @@ Any service that implements the expected `/chat/completions` request and respons
 
 ### Local GUI
 
+For first-time keyboard setup and a safe hardware test sequence, see the [Hardware Quick Start](output/pdf/quickstart.pdf).
+
 Launch the browser interface from the repository environment:
 
 ```powershell
