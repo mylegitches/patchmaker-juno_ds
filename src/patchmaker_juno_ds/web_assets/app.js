@@ -233,6 +233,126 @@ async function randomizePrompt(showToast = true) {
   if (showToast) toast("New sound idea generated");
 }
 
+function setReferenceStatus(message, error = false) {
+  const node = $("#reference-status");
+  node.textContent = message;
+  node.style.color = error ? "var(--danger)" : "";
+}
+
+function startPromptDictation() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    setReferenceStatus("Voice dictation is not supported by this browser", true);
+    return toast("Voice dictation requires Chrome or Edge with microphone permission", true);
+  }
+  const button = $("#speak-prompt");
+  const recognition = new SpeechRecognition();
+  recognition.lang = navigator.language || "en-US";
+  recognition.interimResults = true;
+  recognition.continuous = false;
+  let finalTranscript = "";
+  button.classList.add("listening");
+  button.innerHTML = "<span>●</span> Listening…";
+  setReferenceStatus("Speak now — your current prompt will be replaced");
+  recognition.onresult = event => {
+    let interim = "";
+    for (let index = event.resultIndex; index < event.results.length; index += 1) {
+      const words = event.results[index][0].transcript;
+      if (event.results[index].isFinal) finalTranscript += words;
+      else interim += words;
+    }
+    if ((finalTranscript || interim).trim()) fields.request.value = (finalTranscript || interim).trim();
+  };
+  recognition.onerror = event => {
+    const message = event.error === "not-allowed" ? "Microphone permission was denied" : `Dictation failed: ${event.error}`;
+    setReferenceStatus(message, true); toast(message, true);
+  };
+  recognition.onend = () => {
+    button.classList.remove("listening");
+    button.innerHTML = "<span>●</span> Speak prompt";
+    if (finalTranscript.trim()) {
+      fields.request.value = finalTranscript.trim();
+      setReferenceStatus("Voice prompt ready — edit it or generate");
+      toast("Voice prompt captured");
+    }
+  };
+  try { recognition.start(); }
+  catch (error) { setReferenceStatus(error.message, true); }
+}
+
+function percentile(values, fraction) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))] || 0;
+}
+
+function describeAudio(buffer, fileName) {
+  const sampleRate = buffer.sampleRate;
+  const stride = Math.max(1, Math.floor(sampleRate / 12000));
+  const maximumSamples = 12000 * 180;
+  const channels = Array.from({length: buffer.numberOfChannels}, (_, index) => buffer.getChannelData(index));
+  const levels = [];
+  let sumSquares = 0, crossings = 0, differences = 0, stereoDifference = 0, previous = 0, count = 0;
+  const windowSamples = Math.max(1, Math.floor(sampleRate * .05 / stride));
+  let windowSquares = 0, windowCount = 0;
+  for (let sourceIndex = 0; sourceIndex < channels[0].length && count < maximumSamples; sourceIndex += stride) {
+    let sample = 0;
+    for (const channel of channels) sample += channel[sourceIndex] || 0;
+    sample /= channels.length;
+    sumSquares += sample * sample;
+    differences += (sample - previous) ** 2;
+    if ((sample >= 0) !== (previous >= 0)) crossings += 1;
+    if (channels.length > 1) stereoDifference += ((channels[0][sourceIndex] || 0) - (channels[1][sourceIndex] || 0)) ** 2;
+    windowSquares += sample * sample; windowCount += 1; count += 1; previous = sample;
+    if (windowCount >= windowSamples) {
+      levels.push(Math.sqrt(windowSquares / windowCount)); windowSquares = 0; windowCount = 0;
+    }
+  }
+  if (!count) throw new Error("The audio file contains no samples");
+  const rms = Math.sqrt(sumSquares / count);
+  const brightnessRatio = Math.sqrt(differences / count) / Math.max(rms, .00001);
+  const zeroCrossingRate = crossings / count;
+  const width = channels.length > 1 ? Math.sqrt(stereoDifference / count) / Math.max(rms, .00001) : 0;
+  const quiet = percentile(levels, .15), loud = percentile(levels, .9);
+  const dynamics = loud / Math.max(quiet, .0001);
+  const onset = levels.findIndex(value => value >= loud * .65) * .05;
+  const activeChanges = levels.slice(1).reduce((sum, value, index) => sum + Math.abs(value - levels[index]), 0) / Math.max(levels.length - 1, 1);
+  const movement = activeChanges / Math.max(rms, .0001);
+  const brightness = brightnessRatio > 1.15 || zeroCrossingRate > .13 ? "bright and harmonically crisp" : brightnessRatio < .65 ? "dark and rounded" : "balanced and moderately bright";
+  const envelope = onset > .25 ? "a soft, gradual attack" : dynamics > 12 ? "a sharp, percussive attack" : "a moderately quick attack";
+  const sustain = dynamics > 18 ? "punchy, strongly articulated dynamics" : dynamics < 4 ? "smooth, compressed sustain" : "natural, moderately dynamic sustain";
+  const motion = movement > .32 ? "noticeable rhythmic or evolving movement" : movement < .08 ? "a stable, steady body" : "gentle organic movement";
+  const stereo = channels.length === 1 ? "a centered mono image" : width > .9 ? "a wide stereo image" : "a focused stereo image";
+  const duration = Math.round(buffer.duration * 10) / 10;
+  return `Create a JUNO-DS keyboard patch inspired by the audio reference “${fileName}”. Analyze the prominent keyboard-like timbre in the reference, emphasizing ${brightness}, ${envelope}, ${sustain}, ${motion}, and ${stereo}. The source is ${duration} seconds long. Recreate the closest playable synth character using suitable waveforms, filter shape, amplifier and filter envelopes, modulation, stereo placement, and effects. If this is a full mix, treat the most prominent sustained or pitched keyboard-like layer as the target and ignore drums, vocals, and bass where possible.`;
+}
+
+async function analyzeAudioReference(file) {
+  const button = $("#choose-audio");
+  if (!file) return;
+  if (file.size > 150 * 1024 * 1024) return toast("Choose an audio file smaller than 150 MB", true);
+  button.disabled = true;
+  setReferenceStatus(`Decoding ${file.name}…`);
+  status("Analyzing audio…", "busy");
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) throw new Error("Audio analysis is not supported by this browser");
+    const context = new AudioContextClass();
+    try {
+      const buffer = await context.decodeAudioData(await file.arrayBuffer());
+      fields.request.value = describeAudio(buffer, file.name);
+    } finally { await context.close(); }
+    setReferenceStatus(`${file.name} analyzed — review the prompt, then generate`);
+    status("Ready"); toast("Audio reference converted into an editable prompt");
+  } catch (error) {
+    status("Needs attention", "error");
+    setReferenceStatus("Could not decode this file", true);
+    toast(`Audio analysis failed: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+    $("#audio-reference").value = "";
+  }
+}
+
 async function testConnection() {
   const node = $("#connection-result");
   node.className = "connection-result";
@@ -332,6 +452,9 @@ dropzone.addEventListener("drop", event => event.dataTransfer.files[0] && loadFi
 
 $("#demo-button").addEventListener("click", () => loadDemo().catch(() => {}));
 $("#randomize-prompt").addEventListener("click", () => randomizePrompt().catch(() => {}));
+$("#speak-prompt").addEventListener("click", startPromptDictation);
+$("#choose-audio").addEventListener("click", () => $("#audio-reference").click());
+$("#audio-reference").addEventListener("change", event => analyzeAudioReference(event.target.files[0]));
 $("#save-configuration").addEventListener("click", saveConfiguration);
 $("#test-connection").addEventListener("click", testConnection);
 $("#refine-button").addEventListener("click", () => refine().catch(() => {}));

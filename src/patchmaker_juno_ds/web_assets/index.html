@@ -67,6 +67,12 @@
         </div>
         <div class="prompt-wrap">
           <textarea id="request" maxlength="4000" placeholder="A warm, haunting analog pad with a slow attack, wide stereo movement, and a darker top end…"></textarea>
+          <div class="reference-tools">
+            <input type="file" id="audio-reference" accept="audio/*,.wav,.mp3,.m4a,.aac,.ogg,.flac" hidden>
+            <button class="reference-button" id="speak-prompt" type="button" title="Dictate a new prompt with your microphone"><span>●</span> Speak prompt</button>
+            <button class="reference-button" id="choose-audio" type="button" title="Analyze a recording and create an editable sound-design prompt"><span>♫</span> Analyze audio reference</button>
+            <span class="reference-status" id="reference-status">WAV, MP3, M4A, AAC, OGG, or FLAC</span>
+          </div>
           <div class="prompt-footer">
             <div class="suggestions">
               <button class="randomize" id="randomize-prompt" title="Create another random sound description">↻ Randomize prompt</button>

@@ -189,6 +189,16 @@ class GuiServiceTests(unittest.TestCase):
         self.assertIn('"https://openrouter.ai/api/v1"', script)
         self.assertIn('"openrouter/free"', script)
 
+    def test_interface_supports_microphone_dictation_and_audio_references(self) -> None:
+        assets = files("patchmaker_juno_ds.web_assets")
+        html = assets.joinpath("index.html").read_text("utf-8")
+        script = assets.joinpath("app.js").read_text("utf-8")
+        self.assertIn('id="speak-prompt"', html)
+        self.assertIn('id="audio-reference"', html)
+        self.assertIn("window.SpeechRecognition || window.webkitSpeechRecognition", script)
+        self.assertIn("decodeAudioData", script)
+        self.assertIn("describeAudio(buffer, file.name)", script)
+
 
 class GuiHttpTests(unittest.TestCase):
     @contextmanager
