@@ -4,24 +4,28 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 import urllib.error
 import urllib.request
 from dataclasses import asdict, replace
 from typing import Mapping, Protocol
 
-from .designer import PatchChangePlan
+from .designer import PatchChangePlan, ToneChange
 from .errors import PatchValidationError, PlannerError
 from .model import JunoPatch
 from .parameters import FILTER_TYPES, LFO_WAVEFORMS
 from .prompt_randomizer import resolve_sound_language
 
 SYSTEM_PROMPT = """You are a Roland JUNO-DS sound designer.
-Translate the user's requested sound change into a minimal semantic patch-change plan.
+Translate the user's request into a complete new patch design.
 
 Safety and output rules:
 - Return one JSON object only. Do not use Markdown.
 - Never emit SysEx, byte arrays, raw block data, addresses, or undocumented parameters.
-- Change only parameters needed for the request. Preserve everything else.
+- The starting patch is irrelevant. Never preserve or infer settings from it.
+- Set every supported common field and every supported field for all four tones.
+- Deliberately disable unused tones and still provide all of their field values.
+- Parameters outside the semantic contract are initialized deterministically by the program.
 - Use only the fields and ranges listed in the supplied contract.
 - A tone_number is 1 through 4. Do not include the same tone twice.
 - Explain the synthesis reasoning briefly in the explanation field.
@@ -71,8 +75,8 @@ def _contract() -> dict[str, object]:
             "explanation": "required non-empty string",
             "name": "required distinctive string, 1..12 printable ASCII characters; must differ from current patch name",
             "category": "optional integer, 0..38",
-            "common": "optional object containing only common fields below",
-            "tones": "optional array of {tone_number, changes}",
+            "common": "complete object containing every common field below",
+            "tones": "four entries, one per tone_number, each setting every tone field below",
         },
         "common_fields": {
             "level": "0..127",
@@ -98,7 +102,7 @@ def _contract() -> dict[str, object]:
             "pan": "-64..63",
             "chorus_send": "0..127",
             "reverb_send": "0..127",
-            "wave_number": "0..16384; preserve unless specifically choosing a verified wave",
+            "wave_number": "0..16384; choose deliberately for this tone",
             "filter_type": list(FILTER_TYPES),
             "cutoff": "0..127",
             "resonance": "0..127",
@@ -149,6 +153,32 @@ def _fresh_name(request: str, current_name: str) -> str:
     if candidate.casefold() == current_name.casefold():
         candidate = f"{candidate[:10]}V2"
     return candidate
+
+
+def _safe_patch_name(model_name: str | None, request: str, current_name: str) -> str:
+    """Convert arbitrary model text into a non-empty 12-character JUNO name."""
+    if model_name is None:
+        return _fresh_name(request, current_name)
+    normalized = unicodedata.normalize("NFKD", model_name).encode("ascii", "ignore").decode()
+    cleaned = "".join(character for character in normalized if 0x20 <= ord(character) <= 0x7E)
+    cleaned = " ".join(cleaned.split())[:12].strip()
+    if not cleaned or cleaned.casefold() == current_name.casefold():
+        return _fresh_name(request, current_name)
+    return cleaned
+
+
+def _complete_plan(plan: PatchChangePlan) -> PatchChangePlan:
+    """Fill omitted semantic fields from neutral initialization, never the source patch."""
+    initialized = JunoPatch.initialized()
+    common = asdict(initialized.common_parameters)
+    common.update(plan.common or {})
+    supplied_tones = {tone.tone_number: tone.changes for tone in plan.tones}
+    tones = []
+    for tone_number, defaults in enumerate(initialized.tone_parameters, start=1):
+        changes = asdict(defaults)
+        changes.update(supplied_tones.get(tone_number, {}))
+        tones.append(ToneChange(tone_number, changes))
+    return replace(plan, common=common, tones=tuple(tones))
 
 
 class OpenAICompatiblePlanner:
@@ -207,15 +237,8 @@ class OpenAICompatiblePlanner:
         return model if isinstance(model, str) and model else self.model
 
     def create_plan(self, request: str, patch: JunoPatch) -> PatchChangePlan:
-        patch_context = {
-            "name": patch.name,
-            "category": patch.category,
-            "common": asdict(patch.common_parameters),
-            "tones": [asdict(tone) for tone in patch.tone_parameters],
-        }
         user_payload = {
             "request": request,
-            "current_patch": patch_context,
             "recognized_sound_language": resolve_sound_language(request),
             "output_contract": _contract(),
         }
@@ -251,6 +274,7 @@ class OpenAICompatiblePlanner:
             raise PlannerError(f"LLM returned invalid JSON: {error}") from error
         except PatchValidationError as error:
             raise PlannerError(f"LLM returned an invalid patch-change plan: {error}") from error
-        if plan.name is None or plan.name.casefold() == patch.name.casefold():
-            plan = replace(plan, name=_fresh_name(request, patch.name))
-        return plan
+        safe_name = _safe_patch_name(plan.name, request, patch.name)
+        if safe_name != plan.name:
+            plan = replace(plan, name=safe_name)
+        return _complete_plan(plan)

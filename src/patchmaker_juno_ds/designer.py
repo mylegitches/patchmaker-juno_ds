@@ -94,12 +94,10 @@ class PatchChangePlan:
         )
 
     def apply(self, patch: JunoPatch) -> JunoPatch:
-        """Apply through the verified model, which enforces every device range."""
-        result = JunoPatch(
-            name=self.name if self.name is not None else patch.name,
-            category=self.category if self.category is not None else patch.category,
-            blocks=patch.blocks,
-            schema_version=patch.schema_version,
+        """Construct a complete patch without inheriting source-patch bytes."""
+        result = JunoPatch.initialized(
+            name=self.name if self.name is not None else "INIT PATCH",
+            category=self.category if self.category is not None else 0,
         )
         if self.common:
             result = result.with_common_parameters(**self.common)

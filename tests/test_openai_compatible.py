@@ -56,8 +56,11 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         )
         plan = planner.create_plan("make it darker", make_patch())
         self.assertEqual(plan.name, "Darker")
-        self.assertEqual(plan.common, {"cutoff_offset": -18})
-        self.assertEqual(plan.tones[0].changes, {"cutoff": 52})
+        self.assertEqual(plan.common["cutoff_offset"], -18)
+        self.assertEqual(plan.tones[0].changes["cutoff"], 52)
+        self.assertEqual(len(plan.common), 14)
+        self.assertEqual(len(plan.tones), 4)
+        self.assertTrue(all(len(tone.changes) == 28 for tone in plan.tones))
 
         url, body, headers, timeout = transport.calls[0]
         self.assertEqual(url, "http://localhost:8000/v1/chat/completions")
@@ -70,9 +73,12 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         recognized = user_payload["recognized_sound_language"]
         self.assertTrue(any(item["phrase"] == "dark" for item in recognized))
         self.assertTrue(any("cutoff" in " ".join(item["guidance"]) for item in recognized))
-        self.assertNotIn("blocks", user_payload["current_patch"])
+        self.assertNotIn("current_patch", user_payload)
         self.assertIn("tone_fields", user_payload["output_contract"])
         self.assertIn("required distinctive", user_payload["output_contract"]["top_level"]["name"])
+        system_prompt = body["messages"][0]["content"]
+        self.assertIn("starting patch is irrelevant", system_prompt)
+        self.assertIn("all four tones", system_prompt)
 
     def test_missing_or_repeated_name_gets_a_fresh_request_based_name(self) -> None:
         transport = RecordingTransport(
@@ -83,6 +89,24 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         )
         plan = planner.create_plan("hypnotic shimmering drone", make_patch())
         self.assertEqual(plan.name, "HypnoticShim")
+
+    def test_long_and_non_ascii_model_names_are_made_juno_safe(self) -> None:
+        transport = RecordingTransport(
+            completion('{"explanation":"reshape","name":"Hypnotic Shimmering Drone","common":{"level":100}}')
+        )
+        planner = OpenAICompatiblePlanner(
+            base_url="http://example.test/v1", model="model", transport=transport
+        )
+        long_plan = planner.create_plan("shimmering drone", make_patch())
+        self.assertEqual(long_plan.name, "Hypnotic Shi")
+        self.assertEqual(long_plan.apply(make_patch()).name, "Hypnotic Shi")
+
+        transport.response = completion(
+            '{"explanation":"reshape","name":"Ångström✨","common":{"level":100}}'
+        )
+        unicode_plan = planner.create_plan("metallic pad", make_patch())
+        self.assertEqual(unicode_plan.name, "Angstrom")
+        self.assertEqual(unicode_plan.apply(make_patch()).name, "Angstrom")
 
     def test_api_key_is_optional_for_local_endpoints(self) -> None:
         transport = RecordingTransport(

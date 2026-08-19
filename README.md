@@ -7,7 +7,7 @@ An AI-assisted patch creator for the **Roland JUNO-DS**. The goal is to let musi
 The repository now includes a hardware-safe Python prototype of the JUNO patch API:
 
 - Strict, versioned JSON validation for a complete JUNO-DS patch
-- Lossless preservation of all nine temporary-patch data blocks
+- Complete ownership and deterministic initialization of all nine temporary-patch data blocks
 - Human-editable patch name and category
 - Verified semantic editing for core patch, tone, filter, envelope, and LFO parameters
 - Deterministic Roland RQ1/DT1 framing and checksum validation
@@ -16,9 +16,9 @@ The repository now includes a hardware-safe Python prototype of the JUNO patch A
 - Explicit confirmation before the CLI writes to the temporary edit buffer
 - Standard-library unit and mock-transport tests
 
-The unnamed device parameters remain as validated 7-bit block arrays. This is deliberate: the prototype preserves every byte without claiming semantic parameter offsets that have not yet been verified.
+Every generated patch is constructed from a documented neutral initialization. All nine device blocks are recreated, bipolar controls use their neutral encodings, effect words use the documented zero point, valid keyboard and velocity ranges are established, and reserved bytes are deliberately cleared. No byte is inherited from the patch that happened to be loaded before generation.
 
-Semantic JSON fields are derived from—and written back into—the lossless blocks. Current coverage includes patch level/tuning/portamento and sound-shaping offsets; tone enable/level/tuning/pan; waveform number; TVF filter type, cutoff, resonance, and envelope; TVA envelope; and LFO1 waveform/depth. Unmapped bytes remain untouched.
+Semantic JSON fields are derived from—and written back into—the complete blocks. Current AI-facing coverage includes patch level/tuning/portamento and sound-shaping offsets; tone enable/level/tuning/pan; waveform number; TVF filter type, cutoff, resonance, and envelope; TVA envelope; and LFO1 waveform/depth. Settings outside that semantic contract receive deterministic neutral values instead of values from a source patch.
 
 ### Run the tests
 
@@ -87,6 +87,8 @@ Any service that implements the expected `/chat/completions` request and respons
 
 ### Local GUI
 
+For first-time keyboard setup and a safe hardware test sequence, see the [Hardware Quick Start](output/pdf/quickstart.pdf).
+
 Launch the browser interface from the repository environment:
 
 ```powershell
@@ -98,7 +100,7 @@ Patchmaker opens `http://127.0.0.1:8765` and keeps all operations on the local m
 - Start immediately with an automatically loaded neutral patch, then optionally load and validate another patch JSON file
 - Configure any OpenAI-compatible endpoint and model
 - Paste an API key directly into the session-only web field and test the endpoint, model, and authentication before generating
-- Describe and generate a patch variation
+- Describe and generate a complete new patch
 - Start with an automatically randomized, editable sound description and generate another with **Randomize prompt**
 - Inspect common parameters and all four tones
 - Automatically save every successful generation to a persistent local patch library and reopen any earlier version
