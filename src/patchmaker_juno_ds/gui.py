@@ -22,36 +22,13 @@ from .model import JunoPatch
 from .openai_compatible import OpenAICompatiblePlanner
 from .patch_library import PatchLibrary
 from .prompt_randomizer import SYNTH_SOUND_ATTRIBUTES, randomize_prompt, resolve_sound_language
-from .spec import BLOCK_SPECS
 
 MAX_REQUEST_BYTES = 2 * 1024 * 1024
 
 
 def demo_patch() -> JunoPatch:
     """Return a valid, neutral patch for exploring the GUI without hardware."""
-    blocks = {spec.key: tuple(0 for _ in range(spec.size)) for spec in BLOCK_SPECS}
-    common = list(blocks["patch_common"])
-    for offset in (0x0F, 0x11, 0x12, 0x13, 0x22, 0x23, 0x24, 0x25):
-        common[offset] = 64
-    common[0x0E] = 100
-    common[0x16] = 1
-    blocks["patch_common"] = tuple(common)
-    mix = list(blocks["tone_mix"])
-    mix[0x05] = 1
-    blocks["tone_mix"] = tuple(mix)
-    for tone_number in range(1, 5):
-        tone = list(blocks[f"tone_{tone_number}"])
-        for offset in (0x01, 0x02, 0x04, 0x4F, 0x77, 0x78, 0x79, 0x7A):
-            tone[offset] = 64
-        tone[0x00] = 100 if tone_number == 1 else 0
-        tone[0x48] = 1
-        tone[0x49] = 96
-        tone[0x4D] = 16
-        tone[0x6A] = 127
-        tone[0x6B] = 127
-        tone[0x6C] = 127
-        blocks[f"tone_{tone_number}"] = tuple(tone)
-    return JunoPatch(name="INIT PATCH", category=29, blocks=blocks)
+    return JunoPatch.initialized(name="INIT PATCH", category=29).with_common_parameters(level=100)
 
 
 def _required_string(value: object, name: str) -> str:

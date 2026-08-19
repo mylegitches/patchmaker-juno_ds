@@ -17,7 +17,7 @@ class StaticPlanner:
 
 
 class DesignerTests(unittest.TestCase):
-    def test_plan_applies_only_semantic_changes(self) -> None:
+    def test_plan_builds_from_fully_initialized_blocks(self) -> None:
         patch = make_patch()
         original_mfx = patch.blocks["mfx"]
         plan = PatchChangePlan.from_dict(
@@ -40,7 +40,28 @@ class DesignerTests(unittest.TestCase):
         self.assertEqual(result.patch.common_parameters.cutoff_offset, -24)
         self.assertEqual(result.patch.tone_parameters[0].cutoff, 48)
         self.assertEqual(result.patch.tone_parameters[0].amp_attack, 85)
-        self.assertEqual(result.patch.blocks["mfx"], original_mfx)
+        self.assertNotEqual(result.patch.blocks["mfx"], original_mfx)
+        self.assertEqual(result.patch.blocks["mfx"][0x01], 127)
+        self.assertEqual(result.patch.blocks["mfx"][0x11:0x15], (8, 0, 0, 0))
+
+    def test_plan_result_is_independent_of_every_source_byte(self) -> None:
+        first = make_patch(name="FIRST", category=1)
+        blocks = {key: tuple(127 for _ in data) for key, data in first.blocks.items()}
+        common = list(blocks["patch_common"])
+        common[:12] = b"SECOND      "
+        common[0x0C] = 2
+        blocks["patch_common"] = tuple(common)
+        second = type(first)(name="SECOND", category=2, blocks=blocks)
+        plan = PatchChangePlan.from_dict(
+            {
+                "explanation": "Build a complete bass patch.",
+                "name": "NEW BASS",
+                "category": 13,
+                "common": {"level": 105, "cutoff_offset": -12},
+                "tones": [{"tone_number": 1, "changes": {"enabled": True, "cutoff": 55}}],
+            }
+        )
+        self.assertEqual(plan.apply(first), plan.apply(second))
 
     def test_plan_rejects_raw_or_unknown_fields(self) -> None:
         with self.assertRaisesRegex(PatchValidationError, "unknown plan"):

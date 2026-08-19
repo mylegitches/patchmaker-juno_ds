@@ -5,12 +5,21 @@ from pathlib import Path
 
 from patchmaker_juno_ds.errors import PatchValidationError
 from patchmaker_juno_ds.model import JunoPatch
-from patchmaker_juno_ds.spec import CATEGORY_OFFSET, PATCH_NAME_LENGTH
+from patchmaker_juno_ds.spec import BLOCK_SPECS, CATEGORY_OFFSET, PATCH_NAME_LENGTH
 
 from .helpers import make_patch
 
 
 class JunoPatchTests(unittest.TestCase):
+    def test_initialized_patch_owns_all_blocks_and_uses_neutral_effect_words(self) -> None:
+        patch = JunoPatch.initialized("NEW PATCH", 4)
+        self.assertEqual(set(patch.blocks), {spec.key for spec in BLOCK_SPECS})
+        self.assertEqual(patch.blocks["mfx"][0x11:0x15], (8, 0, 0, 0))
+        self.assertEqual(patch.blocks["chorus"][0x04:0x08], (8, 0, 0, 0))
+        self.assertEqual(patch.blocks["reverb"][0x03:0x07], (8, 0, 0, 0))
+        self.assertEqual(patch.blocks["tone_mix"][0x05], 1)
+        self.assertEqual(patch.blocks["tone_mix"][0x0E], 0)
+
     def test_metadata_is_synchronized_into_patch_common(self) -> None:
         patch = make_patch("DARK PAD", 29)
         common = patch.blocks["patch_common"]

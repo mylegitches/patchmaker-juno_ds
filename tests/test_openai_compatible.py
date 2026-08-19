@@ -56,8 +56,11 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         )
         plan = planner.create_plan("make it darker", make_patch())
         self.assertEqual(plan.name, "Darker")
-        self.assertEqual(plan.common, {"cutoff_offset": -18})
-        self.assertEqual(plan.tones[0].changes, {"cutoff": 52})
+        self.assertEqual(plan.common["cutoff_offset"], -18)
+        self.assertEqual(plan.tones[0].changes["cutoff"], 52)
+        self.assertEqual(len(plan.common), 14)
+        self.assertEqual(len(plan.tones), 4)
+        self.assertTrue(all(len(tone.changes) == 28 for tone in plan.tones))
 
         url, body, headers, timeout = transport.calls[0]
         self.assertEqual(url, "http://localhost:8000/v1/chat/completions")
@@ -70,9 +73,12 @@ class OpenAICompatiblePlannerTests(unittest.TestCase):
         recognized = user_payload["recognized_sound_language"]
         self.assertTrue(any(item["phrase"] == "dark" for item in recognized))
         self.assertTrue(any("cutoff" in " ".join(item["guidance"]) for item in recognized))
-        self.assertNotIn("blocks", user_payload["current_patch"])
+        self.assertNotIn("current_patch", user_payload)
         self.assertIn("tone_fields", user_payload["output_contract"])
         self.assertIn("required distinctive", user_payload["output_contract"]["top_level"]["name"])
+        system_prompt = body["messages"][0]["content"]
+        self.assertIn("starting patch is irrelevant", system_prompt)
+        self.assertIn("all four tones", system_prompt)
 
     def test_missing_or_repeated_name_gets_a_fresh_request_based_name(self) -> None:
         transport = RecordingTransport(

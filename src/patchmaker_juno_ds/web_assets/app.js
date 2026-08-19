@@ -224,7 +224,7 @@ async function loadHistoryPatch(id) {
 const signed = (value) => value > 0 ? `+${value}` : String(value);
 
 async function loadDemo() {
-  const data = await api("/api/demo", {}); renderPatch(data.patch, "Neutral demo patch loaded. Try describing a variation."); toast("Demo patch loaded");
+  const data = await api("/api/demo", {}); renderPatch(data.patch, "Neutral initialization loaded. Describe a completely new patch."); toast("Initialization loaded");
 }
 
 async function randomizePrompt(showToast = true) {
@@ -384,7 +384,7 @@ async function loadFile(file) {
 }
 
 async function refine() {
-  if (!currentPatch) return toast("Load a starting patch first", true);
+  if (!currentPatch) return toast("Load the neutral initialization first", true);
   if (!fields.request.value.trim()) return toast("Describe the sound you want", true);
   clearGenerationError();
   try {

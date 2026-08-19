@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .errors import PatchValidationError
+from .initialization import initialized_blocks
 from .spec import (
     BLOCK_BY_KEY,
     BLOCK_SPECS,
@@ -111,6 +112,13 @@ class JunoPatch:
         object.__setattr__(self, "name", name)
         object.__setattr__(self, "category", category)
         object.__setattr__(self, "blocks", blocks)
+
+    @classmethod
+    def initialized(cls, name: str = "INIT PATCH", category: int = 0) -> "JunoPatch":
+        """Return a complete patch whose bytes have no source-patch ancestry."""
+        clean_name = _validate_name(name)
+        clean_category = _validate_category(category)
+        return cls(clean_name, clean_category, initialized_blocks(clean_name, clean_category))
 
     @classmethod
     def from_blocks(cls, blocks: Mapping[str, tuple[int, ...] | list[int]]) -> "JunoPatch":
